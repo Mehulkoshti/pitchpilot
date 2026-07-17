@@ -58,9 +58,9 @@ describe('conciergeRequestSchema', () => {
       queue: 1,
       arrivalPerMin: 1,
     }));
-    expect(
-      conciergeRequestSchema.safeParse({ message: 'hi', readings }).success
-    ).toBe(false);
+    expect(conciergeRequestSchema.safeParse({ message: 'hi', readings }).success).toBe(
+      false
+    );
   });
 });
 

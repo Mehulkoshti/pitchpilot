@@ -47,8 +47,7 @@ export function rankTransport(
   return options
     .map((option) => {
       const kgCo2e = estimateTrip(option, distanceKm);
-      const percentVsCar =
-        carKg > 0 ? Math.round(((carKg - kgCo2e) / carKg) * 100) : 0;
+      const percentVsCar = carKg > 0 ? Math.round(((carKg - kgCo2e) / carKg) * 100) : 0;
       return {
         optionId: option.id,
         label: option.label,

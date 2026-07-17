@@ -44,10 +44,7 @@ export async function generateText(
   try {
     const client = new GoogleGenerativeAI(apiKey);
     const model = client.getGenerativeModel({ model: MODEL, systemInstruction });
-    const result = await withTimeout(
-      model.generateContent(prompt),
-      TIMEOUT_MS
-    );
+    const result = await withTimeout(model.generateContent(prompt), TIMEOUT_MS);
     const text = result.response.text().trim();
     return text.length > 0 ? text : null;
   } catch (error) {

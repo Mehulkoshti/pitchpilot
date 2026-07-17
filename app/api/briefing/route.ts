@@ -56,7 +56,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   const facts = summariseReadings(readings);
 
   const aiText = isAiConfigured()
-    ? await generateText(BRIEFING_SYSTEM, buildPrompt(facts, recommendations, clearanceMinutes))
+    ? await generateText(
+        BRIEFING_SYSTEM,
+        buildPrompt(facts, recommendations, clearanceMinutes)
+      )
     : null;
 
   const payload: BriefingResponse = {
@@ -90,9 +93,7 @@ function buildPrompt(
 }
 
 /** One line per gate summarising its live status for the prompt/fallback. */
-function summariseReadings(
-  readings: Parameters<typeof recommendLaneChanges>[0]
-): string {
+function summariseReadings(readings: Parameters<typeof recommendLaneChanges>[0]): string {
   return readings
     .map((reading) => {
       const gate = findGate(reading.gateId);
@@ -110,7 +111,9 @@ function deterministicBriefing(
 ): string {
   const lines = recommendations.map((rec) => `• ${rec.label}: ${rec.reason}`);
   if (lines.length === 0) lines.push('• All gates flowing within target wait times.');
-  lines.push(`• Evacuation clearance estimate: ~${clearanceMinutes} min across ${EXIT_COUNT} exits.`);
+  lines.push(
+    `• Evacuation clearance estimate: ~${clearanceMinutes} min across ${EXIT_COUNT} exits.`
+  );
   return lines.join('\n');
 }
 

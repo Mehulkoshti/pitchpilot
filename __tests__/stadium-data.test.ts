@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  EDGES,
-  GATES,
-  NODES,
-  VENUES,
-  findGate,
-  findNode,
-} from '@/lib/stadium-data';
+import { EDGES, GATES, NODES, VENUES, findGate, findNode } from '@/lib/stadium-data';
 
 describe('stadium data integrity', () => {
   it('has unique node ids', () => {

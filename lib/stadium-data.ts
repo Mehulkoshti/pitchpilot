@@ -9,14 +9,7 @@
 
 /** A point of interest a fan may want to reach inside the venue. */
 export type PoiType =
-  | 'seat'
-  | 'concourse'
-  | 'restroom'
-  | 'food'
-  | 'exit'
-  | 'medical'
-  | 'gate'
-  | 'transport';
+  'seat' | 'concourse' | 'restroom' | 'food' | 'exit' | 'medical' | 'gate' | 'transport';
 
 /** A node in the stadium navigation graph. */
 export interface StadiumNode {
@@ -118,10 +111,34 @@ export const VENUES: readonly Venue[] = [
 
 /** Default gate configuration for the flagship venue. */
 export const GATES: readonly Gate[] = [
-  { id: 'gate-a', label: 'Gate A — North', throughputPerMin: 45, openLanes: 6, maxLanes: 10 },
-  { id: 'gate-b', label: 'Gate B — East', throughputPerMin: 30, openLanes: 4, maxLanes: 8 },
-  { id: 'gate-c', label: 'Gate C — South', throughputPerMin: 40, openLanes: 5, maxLanes: 10 },
-  { id: 'gate-d', label: 'Gate D — West', throughputPerMin: 25, openLanes: 3, maxLanes: 6 },
+  {
+    id: 'gate-a',
+    label: 'Gate A — North',
+    throughputPerMin: 45,
+    openLanes: 6,
+    maxLanes: 10,
+  },
+  {
+    id: 'gate-b',
+    label: 'Gate B — East',
+    throughputPerMin: 30,
+    openLanes: 4,
+    maxLanes: 8,
+  },
+  {
+    id: 'gate-c',
+    label: 'Gate C — South',
+    throughputPerMin: 40,
+    openLanes: 5,
+    maxLanes: 10,
+  },
+  {
+    id: 'gate-d',
+    label: 'Gate D — West',
+    throughputPerMin: 25,
+    openLanes: 3,
+    maxLanes: 6,
+  },
 ];
 
 /**
@@ -152,17 +169,59 @@ export const TRANSPORT_OPTIONS: readonly TransportOption[] = [
 export const NODES: readonly StadiumNode[] = [
   { id: 'gate-a', label: 'Gate A — North', type: 'gate', level: 0, accessible: true },
   { id: 'gate-c', label: 'Gate C — South', type: 'gate', level: 0, accessible: true },
-  { id: 'concourse-0-n', label: 'Ground Concourse (North)', type: 'concourse', level: 0, accessible: true },
-  { id: 'concourse-0-s', label: 'Ground Concourse (South)', type: 'concourse', level: 0, accessible: true },
+  {
+    id: 'concourse-0-n',
+    label: 'Ground Concourse (North)',
+    type: 'concourse',
+    level: 0,
+    accessible: true,
+  },
+  {
+    id: 'concourse-0-s',
+    label: 'Ground Concourse (South)',
+    type: 'concourse',
+    level: 0,
+    accessible: true,
+  },
   { id: 'lift-1', label: 'Lift 1', type: 'concourse', level: 0, accessible: true },
   { id: 'stairs-1', label: 'Stairs 1', type: 'concourse', level: 0, accessible: false },
-  { id: 'concourse-2-n', label: 'Upper Concourse (North)', type: 'concourse', level: 2, accessible: true },
-  { id: 'restroom-2-n', label: 'Restroom (Upper North)', type: 'restroom', level: 2, accessible: true },
-  { id: 'food-2-n', label: 'Food Court (Upper North)', type: 'food', level: 2, accessible: true },
-  { id: 'medical-0', label: 'First-Aid Station', type: 'medical', level: 0, accessible: true },
+  {
+    id: 'concourse-2-n',
+    label: 'Upper Concourse (North)',
+    type: 'concourse',
+    level: 2,
+    accessible: true,
+  },
+  {
+    id: 'restroom-2-n',
+    label: 'Restroom (Upper North)',
+    type: 'restroom',
+    level: 2,
+    accessible: true,
+  },
+  {
+    id: 'food-2-n',
+    label: 'Food Court (Upper North)',
+    type: 'food',
+    level: 2,
+    accessible: true,
+  },
+  {
+    id: 'medical-0',
+    label: 'First-Aid Station',
+    type: 'medical',
+    level: 0,
+    accessible: true,
+  },
   { id: 'seat-2-115', label: 'Seat Block 115', type: 'seat', level: 2, accessible: true },
   { id: 'exit-a', label: 'Emergency Exit A', type: 'exit', level: 0, accessible: true },
-  { id: 'transport-rail', label: 'Rail Station Link', type: 'transport', level: 0, accessible: true },
+  {
+    id: 'transport-rail',
+    label: 'Rail Station Link',
+    type: 'transport',
+    level: 0,
+    accessible: true,
+  },
 ];
 
 /** Undirected walkable edges between nodes (metres). */

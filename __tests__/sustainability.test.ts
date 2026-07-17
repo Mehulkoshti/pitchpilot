@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  crowdFootprintTonnes,
-  estimateTrip,
-  rankTransport,
-} from '@/lib/sustainability';
+import { crowdFootprintTonnes, estimateTrip, rankTransport } from '@/lib/sustainability';
 import { TRANSPORT_OPTIONS } from '@/lib/stadium-data';
 
 const car = TRANSPORT_OPTIONS.find((option) => option.id === 'car')!;
@@ -53,7 +49,7 @@ describe('crowdFootprintTonnes', () => {
   it('aggregates a crowd footprint across a modal split', () => {
     const tonnes = crowdFootprintTonnes(1000, { car: 0.5, rail: 0.5 }, 10);
     const expected =
-      ((1000 * 0.5 * estimateTrip(car, 10) + 1000 * 0.5 * estimateTrip(rail, 10)) / 1000);
+      (1000 * 0.5 * estimateTrip(car, 10) + 1000 * 0.5 * estimateTrip(rail, 10)) / 1000;
     expect(tonnes).toBeCloseTo(expected, 2);
   });
 

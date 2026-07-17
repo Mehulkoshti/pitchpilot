@@ -49,9 +49,25 @@ describe('findRoute — accessibility', () => {
     expect(route?.accessible).toBe(true);
   });
 
-  it('marks non-accessible routes accordingly', () => {
+  it('reports a genuinely step-free route as accessible even when not requested', () => {
+    // gate-a → concourse-0-n → medical-0 uses no stairs and only accessible
+    // nodes, so it is step-free regardless of how it was asked for.
     const route = findRoute('gate-a', 'medical-0', { accessibleOnly: false });
+    expect(route?.accessible).toBe(true);
+  });
+
+  it('marks a route that must use stairs as not accessible', () => {
+    const route = findRoute('concourse-0-n', 'stairs-1', { accessibleOnly: false });
+    expect(route?.path).toContain('stairs-1');
     expect(route?.accessible).toBe(false);
+  });
+
+  it('marks a zero-length route at an inaccessible node as not accessible', () => {
+    expect(findRoute('stairs-1', 'stairs-1')?.accessible).toBe(false);
+  });
+
+  it('never reports an inaccessible route in step-free mode', () => {
+    expect(findRoute('concourse-0-n', 'stairs-1', { accessibleOnly: true })).toBeNull();
   });
 });
 

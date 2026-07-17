@@ -17,6 +17,7 @@ import type { PoiType } from './stadium-data';
 /** The categories of question the engine understands. */
 export type Intent =
   | 'gate'
+  | 'seat'
   | 'restroom'
   | 'food'
   | 'medical'
@@ -39,47 +40,135 @@ export interface ConciergeAnswer {
 const INTENT_KEYWORDS: ReadonlyArray<{ intent: Intent; words: readonly string[] }> = [
   {
     intent: 'accessibility',
-    words: ['wheelchair', 'accessible', 'step-free', 'disabled', 'ramp', 'accesible', 'accessible'],
+    words: ['wheelchair', 'accessible', 'step-free', 'disabled', 'ramp', 'accesible'],
   },
   {
     intent: 'gate',
-    words: ['gate', 'entry', 'entrance', 'queue', 'line', 'wait', 'puerta', 'porte', 'fila'],
+    words: [
+      'gate',
+      'entry',
+      'entrance',
+      'queue',
+      'line',
+      'wait',
+      'puerta',
+      'porte',
+      'fila',
+    ],
+  },
+  {
+    intent: 'seat',
+    words: ['seat', 'block', 'row', 'asiento', 'siège', 'assento'],
   },
   {
     intent: 'restroom',
-    words: ['restroom', 'toilet', 'bathroom', 'washroom', 'loo', 'baño', 'toilette', 'banheiro'],
+    words: [
+      'restroom',
+      'toilet',
+      'bathroom',
+      'washroom',
+      'loo',
+      'baño',
+      'toilette',
+      'banheiro',
+    ],
   },
   {
     intent: 'food',
-    words: ['food', 'eat', 'drink', 'concession', 'snack', 'hungry', 'comida', 'nourriture'],
+    words: [
+      'food',
+      'eat',
+      'drink',
+      'concession',
+      'snack',
+      'hungry',
+      'comida',
+      'nourriture',
+    ],
   },
   {
     intent: 'medical',
-    words: ['medical', 'first aid', 'first-aid', 'hurt', 'sick', 'nurse', 'médico', 'medico'],
+    words: [
+      'medical',
+      'first aid',
+      'first-aid',
+      'hurt',
+      'sick',
+      'nurse',
+      'médico',
+      'medico',
+    ],
   },
   {
     intent: 'exit',
-    words: ['exit', 'leave', 'evacuate', 'way out', 'emergency', 'salida', 'sortie', 'saída'],
+    words: [
+      'exit',
+      'leave',
+      'evacuate',
+      'way out',
+      'emergency',
+      'salida',
+      'sortie',
+      'saída',
+    ],
   },
   {
     intent: 'transport',
-    words: ['transport', 'train', 'metro', 'bus', 'car', 'parking', 'airport', 'home', 'casa', 'tren', 'maison'],
+    words: [
+      'transport',
+      'train',
+      'metro',
+      'bus',
+      'car',
+      'parking',
+      'airport',
+      'home',
+      'casa',
+      'tren',
+      'maison',
+    ],
   },
 ];
 
 /** Map a wayfinding intent to the POI type it searches for. */
 const INTENT_POI: Partial<Record<Intent, PoiType>> = {
+  seat: 'seat',
   restroom: 'restroom',
   food: 'food',
   medical: 'medical',
   exit: 'exit',
 };
 
-/** Classify free-text into an {@link Intent} using keyword matching. */
+/** Escape a keyword so it is matched literally inside a regular expression. */
+function escapeRegExp(word: string): string {
+  return word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Compile a keyword into a whole-word matcher, tolerating a simple plural.
+ *
+ * Matching on raw substrings is wrong here: it silently turns "where is my
+ * seat?" into a *food* question ("eat" inside "seat") and "which airline?" into
+ * a *gate* question ("line" inside "airline"). Anchoring the start of the
+ * keyword to a word boundary blocks those, while the optional `s`/`es` suffix
+ * keeps natural plurals ("gates", "baños", "buses") matching.
+ */
+function toMatcher(word: string): RegExp {
+  return new RegExp(`\\b${escapeRegExp(word)}(?:es|s)?\\b`);
+}
+
+/** Keyword matchers, compiled once at module load rather than per query. */
+const INTENT_MATCHERS: ReadonlyArray<{ intent: Intent; patterns: readonly RegExp[] }> =
+  INTENT_KEYWORDS.map(({ intent, words }) => ({
+    intent,
+    patterns: words.map(toMatcher),
+  }));
+
+/** Classify free-text into an {@link Intent} using whole-word keyword matching. */
 export function classifyIntent(query: string): Intent {
   const normalized = query.toLowerCase();
-  for (const { intent, words } of INTENT_KEYWORDS) {
-    if (words.some((word) => normalized.includes(word))) return intent;
+  for (const { intent, patterns } of INTENT_MATCHERS) {
+    if (patterns.some((pattern) => pattern.test(normalized))) return intent;
   }
   return 'unknown';
 }
@@ -92,7 +181,11 @@ export function classifyIntent(query: string): Intent {
  */
 export function answerQuery(
   query: string,
-  context: { readings: readonly GateReading[]; fromNodeId: string; accessibleOnly?: boolean }
+  context: {
+    readings: readonly GateReading[];
+    fromNodeId: string;
+    accessibleOnly?: boolean;
+  }
 ): ConciergeAnswer {
   const intent = classifyIntent(query);
   const { readings, fromNodeId, accessibleOnly = false } = context;
@@ -117,6 +210,13 @@ export function answerQuery(
       const text = route
         ? `Step-free routing is available. The nearest accessible restroom is ${route.distanceM} m away via ${route.steps.join(' → ')}.`
         : 'Step-free lifts serve every level; ask any steward for accessible routing assistance.';
+      return { intent, text };
+    }
+    case 'seat': {
+      const route = findNearest(fromNodeId, 'seat', { accessibleOnly });
+      const text = route
+        ? `${route.steps.at(-1)} is ${route.distanceM} m away: ${route.steps.join(' → ')}.`
+        : 'Your seat block and row are printed on your ticket — any steward nearby can walk you to it.';
       return { intent, text };
     }
     case 'restroom':
@@ -147,7 +247,9 @@ export function buildGroundingContext(readings: readonly GateReading[]): string 
   const gateLine = best
     ? `Fastest gate: ${best.label} (~${best.waitMinutes} min, ${best.level}).`
     : 'Gate telemetry unavailable.';
-  const gates = GATES.map((gate) => `${gate.label} [${gate.openLanes}/${gate.maxLanes} lanes]`).join('; ');
+  const gates = GATES.map(
+    (gate) => `${gate.label} [${gate.openLanes}/${gate.maxLanes} lanes]`
+  ).join('; ');
   return [
     `Venue gates: ${gates}.`,
     gateLine,

@@ -24,6 +24,8 @@ const DEFAULT_WINDOW_MS = 60_000;
 /** A fixed-size sliding-window limiter keyed by client identifier. */
 export class RateLimiter {
   private readonly hits = new Map<string, number[]>();
+  /** When the stale-key sweep last ran, so it runs at most once per window. */
+  private lastSweep = Number.NEGATIVE_INFINITY;
 
   constructor(
     private readonly limit: number = DEFAULT_LIMIT,
@@ -37,6 +39,7 @@ export class RateLimiter {
    * @param now current epoch milliseconds (injected for testability).
    */
   check(key: string, now: number): RateLimitResult {
+    this.sweep(now);
     const windowStart = now - this.windowMs;
     const recent = (this.hits.get(key) ?? []).filter((ts) => ts > windowStart);
 
@@ -53,6 +56,28 @@ export class RateLimiter {
       remaining: this.limit - recent.length,
       resetAt: now + this.windowMs,
     };
+  }
+
+  /** Number of clients currently tracked. Exposed for tests and diagnostics. */
+  get trackedKeys(): number {
+    return this.hits.size;
+  }
+
+  /**
+   * Drop keys whose hits have all aged out of the window.
+   *
+   * Without this the map grows by one entry per distinct client IP and never
+   * shrinks — a slow leak that a long-running matchday instance would feel.
+   * The scan is O(tracked keys) but amortised to once per window, so the
+   * per-request cost stays negligible.
+   */
+  private sweep(now: number): void {
+    if (now - this.lastSweep < this.windowMs) return;
+    this.lastSweep = now;
+    const windowStart = now - this.windowMs;
+    for (const [key, timestamps] of this.hits) {
+      if (timestamps.every((ts) => ts <= windowStart)) this.hits.delete(key);
+    }
   }
 }
 

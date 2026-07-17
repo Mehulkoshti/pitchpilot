@@ -43,9 +43,14 @@ export function effectiveThroughput(gate: Gate): number {
 /**
  * Estimated wait in minutes for a fan joining the queue now.
  *
- * Uses the net clearance rate (throughput minus arrivals). When the queue is
- * shrinking, wait is queue / throughput; when it is growing, the effective
- * service rate degrades toward the arrival-limited bound.
+ * Under FIFO service the fan waits only for the `queue` fans already ahead of
+ * them, cleared at the gate's effective throughput — so the estimate is
+ * `queue / throughput`. Arrival rate is deliberately excluded: fans arriving
+ * after this one join *behind* them and cannot delay them. Arrivals do govern
+ * whether the queue as a whole is growing, which {@link GateStatus.isBacklogGrowing}
+ * reports separately.
+ *
+ * @returns minutes, or `Infinity` when no lane is open to serve the queue.
  */
 export function estimateWaitMinutes(reading: GateReading, gate: Gate): number {
   const throughput = effectiveThroughput(gate);

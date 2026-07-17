@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  answerQuery,
-  buildGroundingContext,
-  classifyIntent,
-} from '@/lib/concierge';
+import { answerQuery, buildGroundingContext, classifyIntent } from '@/lib/concierge';
 import type { GateReading } from '@/lib/stadium-data';
 
 const readings: GateReading[] = [
@@ -43,6 +39,33 @@ describe('classifyIntent', () => {
   ])('understands common Spanish query "%s" as %s', (query, expected) => {
     expect(classifyIntent(query)).toBe(expected);
   });
+
+  it.each([
+    ['Where is my seat?', 'seat'],
+    ['How do I find seat block 115?', 'seat'],
+    ['¿Dónde está mi asiento?', 'seat'],
+  ])('routes seat queries to the seat intent, not food ("%s")', (query, expected) => {
+    expect(classifyIntent(query)).toBe(expected);
+  });
+
+  it.each([
+    // Each of these embeds a keyword inside a longer word: 'eat' in 'seat',
+    // 'line' in 'airline', 'car' in 'card'. Matching raw substrings misfiled
+    // all three.
+    ['Which airline lounge is open?', 'unknown'],
+    ['I lost my card', 'unknown'],
+    ['Great match today', 'unknown'],
+  ])('does not match a keyword buried inside another word ("%s")', (query, expected) => {
+    expect(classifyIntent(query)).toBe(expected);
+  });
+
+  it.each([
+    ['Which gates are open?', 'gate'],
+    ['Where are the restrooms?', 'restroom'],
+    ['¿Dónde están los baños?', 'restroom'],
+  ])('still matches natural plurals ("%s")', (query, expected) => {
+    expect(classifyIntent(query)).toBe(expected);
+  });
 });
 
 describe('answerQuery', () => {
@@ -69,6 +92,22 @@ describe('answerQuery', () => {
   it('provides a step-free answer for accessibility queries', () => {
     const answer = answerQuery('wheelchair route please', context);
     expect(answer.intent).toBe('accessibility');
+  });
+
+  it('routes a fan to their seat block with a grounded distance', () => {
+    const answer = answerQuery('where is my seat?', { readings, fromNodeId: 'gate-a' });
+    expect(answer.intent).toBe('seat');
+    expect(answer.text).toContain('Seat Block 115');
+    expect(answer.text).toMatch(/\d+ m away/);
+  });
+
+  it('gives ticket guidance when the fan is already at their seat', () => {
+    const answer = answerQuery('where is my seat?', {
+      readings,
+      fromNodeId: 'seat-2-115',
+    });
+    expect(answer.intent).toBe('seat');
+    expect(answer.text).toContain('ticket');
   });
 
   it('falls back to a help message for unknown intents', () => {

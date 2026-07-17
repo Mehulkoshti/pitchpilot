@@ -60,6 +60,16 @@ describe('estimateWaitMinutes', () => {
     const reading: GateReading = { gateId: 'gate-a', queue: 33, arrivalPerMin: 0 };
     expect(estimateWaitMinutes(reading, gate)).toBe(1.7);
   });
+
+  it('is unaffected by arrivals, which queue up behind the fan', () => {
+    // Under FIFO a fan waits only for those already ahead of them, so a surge of
+    // late arrivals must not change this fan's estimate. Netting arrivals off
+    // the service rate here would drive the wait negative or infinite.
+    const calm: GateReading = { gateId: 'gate-a', queue: 100, arrivalPerMin: 0 };
+    const surge: GateReading = { gateId: 'gate-a', queue: 100, arrivalPerMin: 999 };
+    expect(estimateWaitMinutes(surge, gate)).toBe(estimateWaitMinutes(calm, gate));
+    expect(estimateWaitMinutes(surge, gate)).toBe(5);
+  });
 });
 
 describe('congestionLevel', () => {

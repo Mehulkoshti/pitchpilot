@@ -34,6 +34,12 @@ interface Neighbour {
   readonly edge: StadiumEdge;
 }
 
+/** The predecessor of a node on the best-known route, and the edge walked. */
+interface Step {
+  readonly from: string;
+  readonly edge: StadiumEdge;
+}
+
 /**
  * Build an adjacency map from the (undirected) edge list, optionally dropping
  * stairs-only edges and edges touching inaccessible nodes.
@@ -74,13 +80,18 @@ export function findRoute(
 ): Route | null {
   if (!findNode(fromId) || !findNode(toId)) return null;
   if (fromId === toId) {
-    return { path: [fromId], steps: [labelOf(fromId)], distanceM: 0, accessible: true };
+    return {
+      path: [fromId],
+      steps: [labelOf(fromId)],
+      distanceM: 0,
+      accessible: findNode(fromId)?.accessible ?? false,
+    };
   }
 
   const accessibleOnly = options.accessibleOnly ?? false;
   const graph = buildGraph(NODES, EDGES, accessibleOnly);
   const distance = new Map<string, number>();
-  const previous = new Map<string, string>();
+  const previous = new Map<string, Step>();
   const visited = new Set<string>();
   distance.set(fromId, 0);
 
@@ -96,19 +107,34 @@ export function findRoute(
       const candidate = (distance.get(current) ?? Infinity) + edge.distanceM;
       if (candidate < (distance.get(to) ?? Infinity)) {
         distance.set(to, candidate);
-        previous.set(to, current);
+        previous.set(to, { from: current, edge });
       }
     }
   }
 
   if (!distance.has(toId)) return null;
-  const path = reconstructPath(previous, fromId, toId);
+  const { path, edges } = reconstructPath(previous, fromId, toId);
   return {
     path,
     steps: path.map(labelOf),
     distanceM: round1(distance.get(toId) ?? 0),
-    accessible: accessibleOnly,
+    accessible: isStepFree(path, edges),
   };
+}
+
+/**
+ * Whether a computed route is genuinely step-free: every edge walked must avoid
+ * stairs and every node passed through must itself be accessible.
+ *
+ * This is derived from the route, not from the caller's request flag — a route
+ * found without {@link RouteOptions.accessibleOnly} may still be step-free, and
+ * reporting that truthfully is what lets the UI label it correctly.
+ */
+function isStepFree(path: readonly string[], edges: readonly StadiumEdge[]): boolean {
+  return (
+    edges.every((edge) => !edge.stairsOnly) &&
+    path.every((id) => findNode(id)?.accessible ?? false)
+  );
 }
 
 /**
@@ -146,21 +172,26 @@ function closestUnvisited(
   return best;
 }
 
-/** Walk the `previous` map backwards to build the ordered path. */
+/**
+ * Walk the `previous` map backwards to build the ordered path, collecting the
+ * edges walked along the way so the caller can inspect the route's properties.
+ */
 function reconstructPath(
-  previous: Map<string, string>,
+  previous: Map<string, Step>,
   fromId: string,
   toId: string
-): string[] {
+): { path: string[]; edges: StadiumEdge[] } {
   const path: string[] = [toId];
+  const edges: StadiumEdge[] = [];
   let cursor = toId;
   while (cursor !== fromId) {
-    const prev = previous.get(cursor);
-    if (prev === undefined) break;
-    path.unshift(prev);
-    cursor = prev;
+    const step = previous.get(cursor);
+    if (step === undefined) break;
+    path.unshift(step.from);
+    edges.unshift(step.edge);
+    cursor = step.from;
   }
-  return path;
+  return { path, edges };
 }
 
 /** Resolve a node id to its display label, falling back to the id. */

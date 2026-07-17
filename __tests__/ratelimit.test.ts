@@ -35,6 +35,26 @@ describe('RateLimiter', () => {
     expect(limiter.check('a', 0).allowed).toBe(true);
     expect(limiter.check('b', 0).allowed).toBe(true);
   });
+
+  it('evicts clients whose hits have aged out, so the map does not grow forever', () => {
+    const limiter = new RateLimiter(5, 1000);
+    for (let i = 0; i < 50; i += 1) limiter.check(`ip-${i}`, 0);
+    expect(limiter.trackedKeys).toBe(50);
+
+    // One request a full window later must sweep the 50 stale clients away.
+    limiter.check('ip-fresh', 5000);
+    expect(limiter.trackedKeys).toBe(1);
+  });
+
+  it('does not evict a client that is still inside its window', () => {
+    const limiter = new RateLimiter(5, 1000);
+    limiter.check('a', 0);
+    limiter.check('b', 900);
+    limiter.check('c', 1500);
+    // 'a' (t=0) has aged out by t=1500; 'b' (t=900) has not.
+    expect(limiter.trackedKeys).toBe(2);
+    expect(limiter.check('b', 1500).remaining).toBe(3);
+  });
 });
 
 describe('clientKey', () => {

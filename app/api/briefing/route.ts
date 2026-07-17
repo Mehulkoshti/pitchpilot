@@ -13,13 +13,9 @@ import type { LaneRecommendation } from '@/lib/crowd';
 import { generateText, isAiConfigured } from '@/lib/gemini';
 import { aiRateLimiter, clientKey } from '@/lib/ratelimit';
 import { briefingRequestSchema } from '@/lib/schema';
-import { GATES, findGate } from '@/lib/stadium-data';
+import { EXIT_COUNT, EXIT_THROUGHPUT_PER_MIN, GATES, findGate } from '@/lib/stadium-data';
 
 export const runtime = 'nodejs';
-
-/** Evacuation model constants for the flagship venue. */
-const EXIT_COUNT = 8;
-const EXIT_THROUGHPUT_PER_MIN = 90;
 
 /** Response payload for the briefing endpoint. */
 interface BriefingResponse {

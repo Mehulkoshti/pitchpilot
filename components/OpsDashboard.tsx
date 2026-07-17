@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { GateCard } from '@/components/GateCard';
+import { SituationStrip } from '@/components/SituationStrip';
 import { gateStatus, recommendGate, recommendLaneChanges } from '@/lib/crowd';
 import type { LaneRecommendation } from '@/lib/crowd';
-import { DEFAULT_GATE_READINGS, GATES } from '@/lib/stadium-data';
+import { DEFAULT_GATE_READINGS, DEFAULT_OCCUPANCY, GATES } from '@/lib/stadium-data';
 import type { Gate, GateReading } from '@/lib/stadium-data';
 
 /** Starting demo readings, one per configured gate. */
@@ -77,7 +78,7 @@ export function OpsDashboard(): React.JSX.Element {
       const response = await fetch('/api/briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ readings, occupancy: 61_000 }),
+        body: JSON.stringify({ readings, occupancy: DEFAULT_OCCUPANCY }),
       });
       if (response.ok) setBriefing((await response.json()) as BriefingApiResponse);
     } catch {
@@ -88,110 +89,134 @@ export function OpsDashboard(): React.JSX.Element {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <section className="lg:col-span-2" aria-labelledby="gates-heading">
-        <h2 id="gates-heading" className="mb-4 text-lg font-semibold text-ink-900">
-          Live gate status
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {statuses.map((status) => (
-            <div key={status.gateId}>
-              <GateCard
-                status={status}
-                isRecommended={status.gateId === recommended?.gateId}
-              />
-              <label className="mt-2 block text-xs text-slate-500">
-                Simulate queue at {status.label}
-                <input
-                  type="range"
-                  min={0}
-                  max={500}
-                  value={status.queue}
-                  onChange={(event) =>
-                    updateQueue(status.gateId, Number(event.target.value))
-                  }
-                  className="mt-1 w-full accent-pitch-600"
-                  aria-label={`Queue length at ${status.label}`}
-                />
-              </label>
-              <p className="mt-1 text-xs text-slate-500">
-                Lanes open:{' '}
-                <span className="font-semibold text-ink-700">
-                  {gateById.get(status.gateId)?.openLanes ?? 0} /{' '}
-                  {gateById.get(status.gateId)?.maxLanes ?? 0}
-                </span>
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+    <div className="space-y-6">
+      <SituationStrip statuses={statuses} occupancy={DEFAULT_OCCUPANCY} />
 
-      <div className="space-y-6">
-        <section aria-labelledby="advice-heading">
-          <h2 id="advice-heading" className="mb-4 text-lg font-semibold text-ink-900">
-            Lane recommendations
+      <div className="grid gap-6 lg:grid-cols-12">
+        <section className="lg:col-span-8" aria-labelledby="gates-heading">
+          <h2 id="gates-heading" className="mb-4 text-lg font-semibold text-ink-900">
+            Live gate status
           </h2>
-          <div className="card" aria-live="polite">
-            {laneAdvice.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                All gates flowing within target wait times.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {laneAdvice.map((advice) => (
-                  <li key={advice.gateId}>
-                    <p className="text-sm font-semibold text-ink-900">{advice.label}</p>
-                    <p className="mt-1 text-xs text-ink-700">{advice.reason}</p>
-                    {advice.openExtraLanes > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {statuses.map((status) => {
+              const gate = gateById.get(status.gateId);
+              const spare = gate ? Math.max(0, gate.maxLanes - gate.openLanes) : 0;
+              return (
+                <GateCard
+                  key={status.gateId}
+                  status={status}
+                  isRecommended={status.gateId === recommended?.gateId}
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-600">
+                      Lanes open{' '}
+                      <span className="font-semibold text-ink-900">
+                        {gate?.openLanes ?? 0} / {gate?.maxLanes ?? 0}
+                      </span>
+                    </span>
+                    {spare > 0 && (
                       <button
                         type="button"
-                        onClick={() => applyLanes(advice.gateId, advice.openExtraLanes)}
-                        className="mt-2 rounded-lg border border-pitch-500 px-3 py-1 text-xs font-semibold text-pitch-700 hover:bg-pitch-50"
+                        onClick={() => applyLanes(status.gateId, 1)}
+                        className="rounded-lg border border-slate-300 px-2 py-1 font-semibold text-ink-700 transition-colors hover:bg-pitch-50"
                       >
-                        Open {advice.openExtraLanes} lane
-                        {advice.openExtraLanes === 1 ? '' : 's'} now
+                        + Open a lane
                       </button>
                     )}
-                  </li>
-                ))}
-              </ul>
-            )}
+                  </div>
+                  <label className="mt-3 block text-xs text-slate-600">
+                    Simulate queue at {status.label}
+                    <input
+                      type="range"
+                      min={0}
+                      max={500}
+                      value={status.queue}
+                      onChange={(event) =>
+                        updateQueue(status.gateId, Number(event.target.value))
+                      }
+                      className="mt-1 w-full accent-pitch-600"
+                      aria-label={`Queue length at ${status.label}`}
+                    />
+                  </label>
+                </GateCard>
+              );
+            })}
           </div>
         </section>
 
-        <section aria-labelledby="briefing-heading">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 id="briefing-heading" className="text-lg font-semibold text-ink-900">
-              AI ops briefing
+        <div className="space-y-6 lg:sticky lg:top-6 lg:col-span-4 lg:self-start">
+          <section aria-labelledby="advice-heading">
+            <h2 id="advice-heading" className="mb-4 text-lg font-semibold text-ink-900">
+              Lane recommendations
             </h2>
-            <button
-              type="button"
-              onClick={() => void generateBriefing()}
-              disabled={isLoading}
-              className="rounded-lg bg-pitch-700 px-3 py-2 text-sm font-semibold text-white hover:bg-pitch-600 disabled:opacity-50"
-            >
-              {isLoading ? 'Generating…' : 'Generate'}
-            </button>
-          </div>
-
-          <div className="card" aria-live="polite">
-            {briefing ? (
-              <>
-                <pre className="whitespace-pre-wrap font-sans text-sm text-ink-900">
-                  {briefing.briefing}
-                </pre>
-                <p className="mt-3 text-xs text-slate-500">
-                  Evacuation clearance: ~{briefing.clearanceMinutes} min ·{' '}
-                  {briefing.source === 'ai' ? 'AI-generated' : 'offline fallback'}
+            <div className="card" aria-live="polite">
+              {laneAdvice.length === 0 ? (
+                <p className="text-sm text-slate-600">
+                  All gates flowing within target wait times.
                 </p>
-              </>
-            ) : (
-              <p className="text-sm text-slate-500">
-                Generate a real-time briefing from current gate telemetry.
-              </p>
-            )}
-          </div>
-        </section>
+              ) : (
+                <ul className="space-y-3">
+                  {laneAdvice.map((advice) => (
+                    <li
+                      key={advice.gateId}
+                      className="rounded-lg border border-slate-200 p-3"
+                    >
+                      <p className="text-sm font-semibold text-ink-900">{advice.label}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-ink-700">
+                        {advice.reason}
+                      </p>
+                      {advice.openExtraLanes > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => applyLanes(advice.gateId, advice.openExtraLanes)}
+                          className="mt-2 w-full rounded-lg bg-pitch-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-pitch-600"
+                        >
+                          Open {advice.openExtraLanes} lane
+                          {advice.openExtraLanes === 1 ? '' : 's'} now
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          <section aria-labelledby="briefing-heading">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 id="briefing-heading" className="text-lg font-semibold text-ink-900">
+                AI ops briefing
+              </h2>
+              <button
+                type="button"
+                onClick={() => void generateBriefing()}
+                disabled={isLoading}
+                className="rounded-lg bg-pitch-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-pitch-600 disabled:opacity-50"
+              >
+                {isLoading ? 'Generating…' : 'Generate'}
+              </button>
+            </div>
+
+            <div className="card" aria-live="polite">
+              {briefing ? (
+                <>
+                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink-900">
+                    {briefing.briefing}
+                  </pre>
+                  <p className="mt-3 border-t border-slate-200 pt-3 text-xs text-slate-600">
+                    {briefing.source === 'ai'
+                      ? 'AI-generated from the engine’s recommendations'
+                      : 'Offline fallback — written by the engine itself'}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  Turn the current telemetry into a prioritised, shift-ready briefing.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

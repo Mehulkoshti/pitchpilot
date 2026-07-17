@@ -74,11 +74,29 @@ export interface Venue {
   readonly name: string;
   readonly city: string;
   readonly country: 'USA' | 'Canada' | 'Mexico';
+  /**
+   * Approximate seating capacity in tournament configuration.
+   *
+   * Published figures vary by source and by how each venue is configured for a
+   * given match, so these are rounded rather than falsely precise. Capacity is
+   * display-only — no engine computes anything from it.
+   */
   readonly capacity: number;
 }
 
-/** The eleven US, three Mexican and two Canadian host venues (subset seeded). */
+/**
+ * All sixteen host venues: eleven in the United States, three in Mexico, two in
+ * Canada. Ordered by capacity, largest first.
+ */
 export const VENUES: readonly Venue[] = [
+  { id: 'att', name: 'AT&T Stadium', city: 'Dallas', country: 'USA', capacity: 94000 },
+  {
+    id: 'azteca',
+    name: 'Estadio Azteca',
+    city: 'Mexico City',
+    country: 'Mexico',
+    capacity: 83000,
+  },
   {
     id: 'metlife',
     name: 'MetLife Stadium',
@@ -87,26 +105,78 @@ export const VENUES: readonly Venue[] = [
     capacity: 82500,
   },
   {
+    id: 'mercedes-benz',
+    name: 'Mercedes-Benz Stadium',
+    city: 'Atlanta',
+    country: 'USA',
+    capacity: 75000,
+  },
+  {
+    id: 'arrowhead',
+    name: 'Arrowhead Stadium',
+    city: 'Kansas City',
+    country: 'USA',
+    capacity: 73000,
+  },
+  { id: 'nrg', name: 'NRG Stadium', city: 'Houston', country: 'USA', capacity: 72000 },
+  {
+    id: 'levis',
+    name: "Levi's Stadium",
+    city: 'San Francisco Bay Area',
+    country: 'USA',
+    capacity: 71000,
+  },
+  {
     id: 'sofi',
     name: 'SoFi Stadium',
     city: 'Los Angeles',
     country: 'USA',
-    capacity: 70240,
+    capacity: 70000,
+  },
+  { id: 'lumen', name: 'Lumen Field', city: 'Seattle', country: 'USA', capacity: 69000 },
+  {
+    id: 'lincoln-financial',
+    name: 'Lincoln Financial Field',
+    city: 'Philadelphia',
+    country: 'USA',
+    capacity: 69000,
   },
   {
-    id: 'azteca',
-    name: 'Estadio Azteca',
-    city: 'Mexico City',
-    country: 'Mexico',
-    capacity: 87523,
+    id: 'gillette',
+    name: 'Gillette Stadium',
+    city: 'Boston',
+    country: 'USA',
+    capacity: 65000,
   },
   {
-    id: 'bmo',
-    name: 'BMO Field',
-    city: 'Toronto',
+    id: 'hard-rock',
+    name: 'Hard Rock Stadium',
+    city: 'Miami',
+    country: 'USA',
+    capacity: 65000,
+  },
+  {
+    id: 'bc-place',
+    name: 'BC Place',
+    city: 'Vancouver',
     country: 'Canada',
-    capacity: 45000,
+    capacity: 54000,
   },
+  {
+    id: 'bbva',
+    name: 'Estadio BBVA',
+    city: 'Monterrey',
+    country: 'Mexico',
+    capacity: 53500,
+  },
+  {
+    id: 'akron',
+    name: 'Estadio Akron',
+    city: 'Guadalajara',
+    country: 'Mexico',
+    capacity: 48000,
+  },
+  { id: 'bmo', name: 'BMO Field', city: 'Toronto', country: 'Canada', capacity: 45000 },
 ];
 
 /** Default gate configuration for the flagship venue. */
@@ -151,6 +221,21 @@ export const DEFAULT_GATE_READINGS: readonly GateReading[] = [
   { gateId: 'gate-c', queue: 90, arrivalPerMin: 45 },
   { gateId: 'gate-d', queue: 180, arrivalPerMin: 30 },
 ];
+
+/**
+ * Emergency-egress model for the flagship venue.
+ *
+ * Shared rather than owned by the briefing route: the operations dashboard
+ * shows evacuation readiness continuously, and the two must not be able to
+ * quote different numbers for the same venue.
+ */
+export const EXIT_COUNT = 8;
+
+/** Sustained fans-per-minute each emergency exit can clear. */
+export const EXIT_THROUGHPUT_PER_MIN = 90;
+
+/** Representative in-bowl occupancy used to seed the ops demo. */
+export const DEFAULT_OCCUPANCY = 61_000;
 
 /** Transport modes with representative CO2e intensities (gCO2e/passenger-km). */
 export const TRANSPORT_OPTIONS: readonly TransportOption[] = [

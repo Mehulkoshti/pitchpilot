@@ -21,6 +21,10 @@ const nextConfig = {
           "img-src 'self' data: blob:",
           "font-src 'self'",
           "connect-src 'self'",
+          // The offline service worker is same-origin (`/sw.js`); stated
+          // explicitly rather than left to fall back through script-src.
+          "worker-src 'self'",
+          "manifest-src 'self'",
           "object-src 'none'",
           "base-uri 'self'",
           "form-action 'self'",

@@ -1,7 +1,9 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
+import { answerQuery } from '@/lib/concierge';
 import { LANGUAGES } from '@/lib/i18n';
+import { DEFAULT_GATE_READINGS } from '@/lib/stadium-data';
 
 /** One turn in the concierge conversation. */
 interface Message {
@@ -26,12 +28,30 @@ const SUGGESTIONS: readonly string[] = [
   'How do I get to the city centre?',
 ];
 
+/** The fan's routing context, shared with the wayfinding panel on the page. */
+export interface ConciergeChatProps {
+  /** Where the fan currently is, so routed answers start from the right place. */
+  readonly fromNodeId?: string;
+  /** Whether answers must stick to step-free routes. */
+  readonly accessibleOnly?: boolean;
+}
+
+/** Fallback origin when the chat is used outside the fan page. */
+const DEFAULT_ORIGIN = 'gate-a';
+
 /**
  * The multilingual AI concierge chat widget. Posts to `/api/concierge`, shows
  * whether each answer came from the AI or the offline fallback, and remains
  * fully keyboard- and screen-reader-accessible.
+ *
+ * The fan's location and step-free preference are passed in and forwarded to
+ * the API, so "nearest restroom?" is answered from where the fan actually is —
+ * and, for a wheelchair user, without stairs.
  */
-export function ConciergeChat(): React.JSX.Element {
+export function ConciergeChat({
+  fromNodeId = DEFAULT_ORIGIN,
+  accessibleOnly = false,
+}: ConciergeChatProps = {}): React.JSX.Element {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [language, setLanguage] = useState('en');
@@ -52,7 +72,7 @@ export function ConciergeChat(): React.JSX.Element {
       const response = await fetch('/api/concierge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, language }),
+        body: JSON.stringify({ message: trimmed, language, fromNodeId, accessibleOnly }),
       });
       const data = (await response.json()) as ConciergeApiResponse;
       const answer = response.ok
@@ -63,12 +83,19 @@ export function ConciergeChat(): React.JSX.Element {
         { id: nextId.current++, role: 'assistant', text: answer, source: data.source },
       ]);
     } catch {
+      // The network is gone, but the concierge engine is pure and already in the
+      // browser — answer locally rather than stranding the fan with an error.
+      const local = answerQuery(trimmed, {
+        readings: DEFAULT_GATE_READINGS,
+        fromNodeId,
+        accessibleOnly,
+      });
       setMessages((prev) => [
         ...prev,
         {
           id: nextId.current++,
           role: 'assistant',
-          text: 'Network error — please try again.',
+          text: local.text,
           source: 'fallback',
         },
       ]);

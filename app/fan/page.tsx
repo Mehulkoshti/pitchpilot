@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import { ConciergeChat } from '@/components/ConciergeChat';
-import { RouteFinder } from '@/components/RouteFinder';
-import { TransportPanel } from '@/components/TransportPanel';
+import { FanCompanion } from '@/components/FanCompanion';
 
 export const metadata: Metadata = {
   title: 'Fan companion',
@@ -21,13 +19,7 @@ export default function FanPage(): React.JSX.Element {
         </p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="lg:row-span-2">
-          <ConciergeChat />
-        </div>
-        <RouteFinder />
-        <TransportPanel />
-      </div>
+      <FanCompanion />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -22,7 +23,9 @@ describe('CongestionBadge', () => {
 describe('FeatureCard', () => {
   it('renders the feature title and description', () => {
     render(
-      <FeatureCard feature={{ icon: '🚦', title: 'Crowd flow', description: 'Live queues.' }} />
+      <FeatureCard
+        feature={{ icon: '🚦', title: 'Crowd flow', description: 'Live queues.' }}
+      />
     );
     expect(screen.getByRole('heading', { name: 'Crowd flow' })).toBeInTheDocument();
     expect(screen.getByText('Live queues.')).toBeInTheDocument();
@@ -52,9 +55,26 @@ describe('GateCard', () => {
   });
 });
 
+/**
+ * RouteFinder's location and step-free state are owned by the fan page so the
+ * concierge can share them; this harness stands in for that owner.
+ */
+function ControlledRouteFinder(): React.JSX.Element {
+  const [fromId, setFromId] = useState('seat-2-115');
+  const [accessibleOnly, setAccessibleOnly] = useState(false);
+  return (
+    <RouteFinder
+      fromId={fromId}
+      onFromIdChange={setFromId}
+      accessibleOnly={accessibleOnly}
+      onAccessibleOnlyChange={setAccessibleOnly}
+    />
+  );
+}
+
 describe('RouteFinder', () => {
   it('renders a route with numbered steps by default', () => {
-    render(<RouteFinder />);
+    render(<ControlledRouteFinder />);
     expect(screen.getByRole('heading', { name: 'Find your way' })).toBeInTheDocument();
     // From "Seat Block 115" the nearest restroom is the Upper North restroom,
     // which appears as the final routing step (and in the origin selector).
@@ -63,7 +83,7 @@ describe('RouteFinder', () => {
 
   it('recomputes a step-free route when the accessibility toggle is checked', async () => {
     const user = userEvent.setup();
-    render(<RouteFinder />);
+    render(<ControlledRouteFinder />);
     const toggle = screen.getByRole('checkbox', { name: /step-free/i });
     await user.click(toggle);
     expect(toggle).toBeChecked();

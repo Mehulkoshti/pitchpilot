@@ -5,7 +5,6 @@
   "description": "PitchPilot — a GenAI-powered smart-stadium operations and fan-companion platform for the FIFA World Cup 2026, providing crowd-flow intelligence, accessible wayfinding, a multilingual AI concierge, and real-time operational decision support.",
   "license": "MIT",
   "author": "PitchPilot",
-  "homepage": "https://pitchpilot.netlify.app",
   "keywords": [
     "fifa-world-cup-2026",
     "smart-stadium",
@@ -17,13 +16,13 @@
     "genai"
   ],
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=20.9.0"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -33,7 +32,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
-    "next": "^14.2.33",
+    "next": "^16.2.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "server-only": "^0.0.1",
@@ -46,17 +45,26 @@
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-v8": "^2.0.5",
+    "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "autoprefixer": "^10.4.19",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.33",
-    "eslint-config-prettier": "^9.1.0",
-    "jsdom": "^24.1.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.15",
     "prettier": "^3.3.3",
     "tailwindcss": "^3.4.7",
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "$postcss"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mehulkoshti/pitchpilot.git"
   }
 }

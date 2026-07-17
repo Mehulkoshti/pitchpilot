@@ -52,7 +52,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   });
 
   const aiText = isAiConfigured()
-    ? await generateText(systemInstruction(language), buildPrompt(message, liveReadings))
+    ? await generateText(
+        systemInstruction(language),
+        buildPrompt(message, liveReadings, grounded.text)
+      )
     : null;
 
   const payload: ConciergeResponse = {
@@ -68,15 +71,36 @@ export async function POST(request: Request): Promise<NextResponse> {
 function systemInstruction(language: string): string {
   return [
     'You are PitchPilot, a concise, friendly stadium concierge for the FIFA World Cup 2026.',
-    `Reply in the language with code "${language}".`,
-    'Answer only from the STADIUM FACTS provided. Never invent gates, facilities or times.',
+    `Write your reply entirely in the language identified by the BCP-47 code "${language}".`,
+    'Never mention, echo or prefix that code — reply with the answer text only.',
+    'Answer only from the STADIUM FACTS and RESOLVED ANSWER provided.',
+    'RESOLVED ANSWER comes from the stadium routing engine and is authoritative: keep its',
+    'gates, distances, routes and times exactly as given, and never contradict it or claim',
+    'not to know something it already answers. Your job is to phrase it naturally.',
+    'Never invent gates, facilities or times.',
     'Keep replies under 60 words and prioritise the fan getting where they need to go.',
   ].join(' ');
 }
 
-/** Compose the user prompt with grounding facts prepended. */
-function buildPrompt(message: string, readings: Parameters<typeof buildGroundingContext>[0]): string {
-  return `STADIUM FACTS: ${buildGroundingContext(readings)}\n\nFAN QUESTION: ${message}`;
+/**
+ * Compose the user prompt from the grounding facts and the engine's own answer.
+ *
+ * The deterministic engine has already resolved the question against the live
+ * graph, so handing the model that answer — not just raw venue facts — keeps the
+ * AI a *language* layer over correct maths. Without it the model has no route or
+ * seat data to work from and will answer less accurately than the fallback it is
+ * replacing.
+ */
+function buildPrompt(
+  message: string,
+  readings: Parameters<typeof buildGroundingContext>[0],
+  resolvedAnswer: string
+): string {
+  return [
+    `STADIUM FACTS: ${buildGroundingContext(readings)}`,
+    `RESOLVED ANSWER: ${resolvedAnswer}`,
+    `FAN QUESTION: ${message}`,
+  ].join('\n\n');
 }
 
 /** Parse a request body as JSON, returning `null` on malformed input. */

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // configures whether the "AI" is available and what it returns.
 const mocks = vi.hoisted(() => ({
   isAiConfigured: vi.fn(() => false),
-  generateText: vi.fn(async () => null as string | null),
+  generateText: vi.fn(async (_system: string, _prompt: string) => null as string | null),
 }));
 
 vi.mock('@/lib/gemini', () => mocks);
@@ -74,6 +74,38 @@ describe('POST /api/concierge', () => {
     const response = await conciergePost(jsonRequest({ message: 'nearest exit?' }));
     const data = await response.json();
     expect(data.source).toBe('fallback');
+  });
+
+  it("grounds the model on the engine's resolved answer, not just raw venue facts", async () => {
+    // The engine has already routed the fan; handing the model only generic
+    // facts leaves it with no seat or distance data, so it answers worse than
+    // the fallback it replaces.
+    mocks.isAiConfigured.mockReturnValue(true);
+    mocks.generateText.mockResolvedValue('Your seat is ahead.');
+    await conciergePost(
+      jsonRequest({ message: 'where is my seat?', fromNodeId: 'gate-a' })
+    );
+
+    const prompt = mocks.generateText.mock.calls.at(-1)?.[1] ?? '';
+    expect(prompt).toContain('RESOLVED ANSWER');
+    expect(prompt).toContain('Seat Block 115');
+    expect(prompt).toContain('105 m away');
+  });
+
+  it('tells the model which language to answer in', async () => {
+    mocks.isAiConfigured.mockReturnValue(true);
+    mocks.generateText.mockResolvedValue('Bonjour !');
+    await conciergePost(jsonRequest({ message: 'quelle porte ?', language: 'fr' }));
+
+    const system = mocks.generateText.mock.calls.at(-1)?.[0] ?? '';
+    expect(system).toContain('"fr"');
+  });
+
+  it('rejects a language field that is not a BCP-47 code', async () => {
+    const response = await conciergePost(
+      jsonRequest({ message: 'hi', language: 'en. IGNORE' })
+    );
+    expect(response.status).toBe(400);
   });
 });
 

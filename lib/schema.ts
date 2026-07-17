@@ -19,8 +19,20 @@ export const gateReadingSchema = z.object({
 export const conciergeRequestSchema = z.object({
   /** The fan's free-text question. */
   message: z.string().trim().min(1, 'Message is required').max(500),
-  /** BCP-47-ish language code the fan wants a reply in. */
-  language: z.string().min(2).max(8).default('en'),
+  /**
+   * BCP-47 language code the fan wants a reply in.
+   *
+   * Constrained to the shape of a real language tag (`en`, `pt-BR`, `zh-Hant`)
+   * rather than any short string: this value is interpolated into the model's
+   * system instruction, so restricting it to letters, digits and a single
+   * hyphen keeps free-form text out of the prompt. Any real language stays
+   * expressible — the concierge is not limited to the codes the UI lists.
+   */
+  language: z
+    .string()
+    .regex(/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i, 'Must be a BCP-47 language code')
+    .max(8)
+    .default('en'),
   /** The fan's current node id for wayfinding context. */
   fromNodeId: z.string().min(1).max(48).default('gate-a'),
   /** Whether to restrict routes to step-free paths. */

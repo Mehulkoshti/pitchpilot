@@ -1,3 +1,14 @@
+/**
+ * React's development build needs `eval()` — it reconstructs callstacks and
+ * powers other debugging features with it — so a CSP without `unsafe-eval`
+ * makes it log an error on every page in `next dev`.
+ *
+ * It is granted in development only. React never uses `eval()` in production,
+ * so the shipped policy stays strict; loosening it there to quiet a dev-only
+ * console message would trade real security for convenience.
+ */
+const isDev = process.env.NODE_ENV === 'development';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -16,7 +27,7 @@ const nextConfig = {
         key: 'Content-Security-Policy',
         value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline'",
+          `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob:",
           "font-src 'self'",

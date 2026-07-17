@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -55,38 +54,45 @@ describe('GateCard', () => {
   });
 });
 
-/**
- * RouteFinder's location and step-free state are owned by the fan page so the
- * concierge can share them; this harness stands in for that owner.
- */
-function ControlledRouteFinder(): React.JSX.Element {
-  const [fromId, setFromId] = useState('seat-2-115');
-  const [accessibleOnly, setAccessibleOnly] = useState(false);
-  return (
-    <RouteFinder
-      fromId={fromId}
-      onFromIdChange={setFromId}
-      accessibleOnly={accessibleOnly}
-      onAccessibleOnlyChange={setAccessibleOnly}
-    />
-  );
-}
-
 describe('RouteFinder', () => {
-  it('renders a route with numbered steps by default', () => {
-    render(<ControlledRouteFinder />);
+  // Location and the step-free preference are owned by the fan page (see
+  // FanContextBar) so the concierge shares them; RouteFinder just receives them.
+  it('routes to the nearest restroom from the given origin', () => {
+    render(<RouteFinder fromId="seat-2-115" accessibleOnly={false} />);
     expect(screen.getByRole('heading', { name: 'Find your way' })).toBeInTheDocument();
-    // From "Seat Block 115" the nearest restroom is the Upper North restroom,
-    // which appears as the final routing step (and in the origin selector).
-    expect(screen.getAllByText('Restroom (Upper North)').length).toBeGreaterThan(0);
+    expect(screen.getByText('Restroom (Upper North)')).toBeInTheDocument();
+    expect(screen.getByText('48 m')).toBeInTheDocument();
   });
 
-  it('recomputes a step-free route when the accessibility toggle is checked', async () => {
+  it('re-routes when the fan picks a different destination', async () => {
     const user = userEvent.setup();
-    render(<ControlledRouteFinder />);
-    const toggle = screen.getByRole('checkbox', { name: /step-free/i });
-    await user.click(toggle);
-    expect(toggle).toBeChecked();
-    expect(screen.getByText(/step-free/)).toBeInTheDocument();
+    render(<RouteFinder fromId="gate-a" accessibleOnly={false} />);
+    await user.click(screen.getByRole('button', { name: /first aid/i }));
+    expect(screen.getByText('First-Aid Station')).toBeInTheDocument();
+  });
+
+  it('marks the pressed destination for assistive technology', async () => {
+    const user = userEvent.setup();
+    render(<RouteFinder fromId="gate-a" accessibleOnly={false} />);
+    const food = screen.getByRole('button', { name: /food/i });
+    expect(food).toHaveAttribute('aria-pressed', 'false');
+    await user.click(food);
+    expect(food).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('routes around the stairs when the page asks for step-free only', () => {
+    // Ground concourse up to a level-2 restroom: the only step-free way is the
+    // lift. (From the seat itself no lift is needed — seat and restroom share
+    // level 2 — so this origin is what actually exercises the constraint.)
+    render(<RouteFinder fromId="concourse-0-n" accessibleOnly />);
+    expect(screen.getByText('Lift 1')).toBeInTheDocument();
+    expect(screen.queryByText('Stairs 1')).not.toBeInTheDocument();
+  });
+
+  it('reports a route as step-free only when it genuinely is', () => {
+    // gate-a → concourse-0-n → medical-0 uses no stairs, so the badge shows
+    // even though step-free mode was not requested.
+    render(<RouteFinder fromId="gate-a" accessibleOnly={false} />);
+    expect(screen.getByText('Step-free')).toBeInTheDocument();
   });
 });

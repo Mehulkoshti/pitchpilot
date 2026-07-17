@@ -1,45 +1,37 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { NODES } from '@/lib/stadium-data';
 import type { PoiType } from '@/lib/stadium-data';
 import { findNearest } from '@/lib/wayfinding';
 
-/** Destinations a fan can route to, with a friendly label. */
-const DESTINATIONS: ReadonlyArray<{ type: PoiType; label: string }> = [
-  { type: 'restroom', label: 'Restroom' },
-  { type: 'food', label: 'Food' },
-  { type: 'medical', label: 'First aid' },
-  { type: 'exit', label: 'Exit' },
-  { type: 'transport', label: 'Transport' },
+/** Destinations a fan can route to, with a friendly label and icon. */
+const DESTINATIONS: ReadonlyArray<{ type: PoiType; label: string; icon: string }> = [
+  { type: 'restroom', label: 'Restroom', icon: '🚻' },
+  { type: 'food', label: 'Food', icon: '🍔' },
+  { type: 'medical', label: 'First aid', icon: '🚑' },
+  { type: 'exit', label: 'Exit', icon: '🚪' },
+  { type: 'transport', label: 'Transport', icon: '🚆' },
+  { type: 'seat', label: 'My seat', icon: '💺' },
 ];
 
-/** Nodes a fan can select as their starting point. */
-const ORIGINS = NODES.filter((node) => node.type !== 'transport');
-
-/** Where the fan is and how they move — owned by the page, shared with the concierge. */
+/** Where the fan is and how they move — owned by the page, shared with the chat. */
 export interface RouteFinderProps {
   readonly fromId: string;
-  readonly onFromIdChange: (fromId: string) => void;
   readonly accessibleOnly: boolean;
-  readonly onAccessibleOnlyChange: (accessibleOnly: boolean) => void;
 }
 
 /**
  * Client-side wayfinding widget. Runs the pure {@link findNearest} engine
- * directly in the browser — instant, offline-capable — and offers a step-free
- * toggle so wheelchair users get a guaranteed accessible route.
+ * directly in the browser — instant, offline-capable.
  *
- * Location and the step-free preference are controlled by the parent rather
- * than held here: the concierge must answer from the *same* location and honour
- * the same preference, otherwise a fan who sets both here still gets routed
- * from the default gate — down stairs — when they ask the chat instead.
+ * Origin and the step-free preference are controlled by the page rather than
+ * held here: the concierge must answer from the *same* location and honour the
+ * same preference, otherwise a fan who sets both here still gets routed from
+ * the default gate — down stairs — when they ask the chat instead.
  */
 export function RouteFinder({
   fromId,
-  onFromIdChange,
   accessibleOnly,
-  onAccessibleOnlyChange,
 }: RouteFinderProps): React.JSX.Element {
   const [type, setType] = useState<PoiType>('restroom');
 
@@ -50,67 +42,59 @@ export function RouteFinder({
 
   return (
     <section className="card" aria-labelledby="route-heading">
-      <h2 id="route-heading" className="mb-3 text-lg font-semibold text-ink-900">
+      <h2 id="route-heading" className="text-lg font-semibold text-ink-900">
         Find your way
       </h2>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">
-          <span className="mb-1 block font-medium text-ink-700">I&apos;m at</span>
-          <select
-            value={fromId}
-            onChange={(event) => onFromIdChange(event.target.value)}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2"
-          >
-            {ORIGINS.map((node) => (
-              <option key={node.id} value={node.id}>
-                {node.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="text-sm">
-          <span className="mb-1 block font-medium text-ink-700">Take me to</span>
-          <select
-            value={type}
-            onChange={(event) => setType(event.target.value as PoiType)}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2"
-          >
-            {DESTINATIONS.map((destination) => (
-              <option key={destination.type} value={destination.type}>
+      <fieldset className="mt-4">
+        <legend className="mb-2 text-sm font-medium text-ink-700">Take me to</legend>
+        <div className="flex flex-wrap gap-2">
+          {DESTINATIONS.map((destination) => {
+            const isActive = destination.type === type;
+            return (
+              <button
+                key={destination.type}
+                type="button"
+                onClick={() => setType(destination.type)}
+                aria-pressed={isActive}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'border-pitch-600 bg-pitch-600 text-white'
+                    : 'border-slate-300 text-ink-700 hover:bg-pitch-50'
+                }`}
+              >
+                <span aria-hidden="true">{destination.icon}</span>
                 {destination.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
-      <label className="mt-3 flex items-center gap-2 text-sm text-ink-700">
-        <input
-          type="checkbox"
-          checked={accessibleOnly}
-          onChange={(event) => onAccessibleOnlyChange(event.target.checked)}
-          className="h-4 w-4 rounded border-slate-300"
-        />
-        Step-free route only (wheelchair accessible)
-      </label>
-
-      <div className="mt-4 rounded-lg bg-slate-50 p-4" aria-live="polite">
+      <div className="mt-4 rounded-xl bg-slate-50 p-4" aria-live="polite">
         {route ? (
           <>
-            <p className="mb-2 text-sm font-semibold text-pitch-700">
-              {route.distanceM} m{accessibleOnly && ' · step-free'}
+            <p className="mb-3 flex flex-wrap items-baseline gap-2">
+              <span className="text-2xl font-bold text-pitch-700">
+                {route.distanceM} m
+              </span>
+              {route.accessible && (
+                <span className="rounded-full bg-pitch-100 px-2 py-0.5 text-xs font-semibold text-pitch-700">
+                  Step-free
+                </span>
+              )}
             </p>
-            <ol className="space-y-1 text-sm text-ink-900">
+            <ol className="space-y-2 text-sm text-ink-900">
               {route.steps.map((step, index) => (
-                <li key={`${step}-${index}`} className="flex gap-2">
-                  {/* slate-600, not a lighter grey: these step numbers sit on a
-                      slate-50 panel, where slate-400 measures 2.45:1 and fails
-                      WCAG AA. Decorative to screen readers, but still read by
-                      eye. */}
-                  <span aria-hidden="true" className="text-slate-600">
-                    {index + 1}.
+                <li key={`${step}-${index}`} className="flex items-start gap-2.5">
+                  {/* slate-600, not lighter: on this slate-50 panel a slate-400
+                      marker measures 2.45:1 against a 4.5:1 requirement.
+                      Decorative to screen readers, but still read by eye. */}
+                  <span
+                    aria-hidden="true"
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-600 ring-1 ring-slate-200"
+                  >
+                    {index + 1}
                   </span>
                   {step}
                 </li>

@@ -104,18 +104,38 @@ export function ConciergeChat({
     }
   }
 
+  const hasMessages = messages.length > 0;
+
   return (
-    <section className="card flex flex-col" aria-labelledby="concierge-heading">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 id="concierge-heading" className="text-lg font-semibold text-ink-900">
-          AI concierge
-        </h2>
+    // A fixed panel height rather than stretching to the column: matching the
+    // taller right-hand column pushed the input below the fold and left a void
+    // above it. 32rem keeps the whole conversation and the input on screen.
+    <section className="card flex h-[32rem] flex-col" aria-labelledby="concierge-heading">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-pitch-50 text-lg"
+          >
+            🌐
+          </span>
+          <div>
+            <h2
+              id="concierge-heading"
+              className="font-semibold leading-tight text-ink-900"
+            >
+              AI concierge
+            </h2>
+            <p className="text-xs text-slate-600">Ask in any language</p>
+          </div>
+        </div>
+
         <label className="flex items-center gap-2 text-sm">
-          <span className="text-ink-700">Language</span>
+          <span className="sr-only sm:not-sr-only sm:text-ink-700">Language</span>
           <select
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-2 py-1"
+            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-medium text-ink-900"
           >
             {LANGUAGES.map((lang) => (
               <option key={lang.code} value={lang.code}>
@@ -126,49 +146,69 @@ export function ConciergeChat({
         </label>
       </div>
 
+      {/* The conversation grows to fill the panel so the card never collapses
+          into dead space before the first question is asked. */}
       <ul
         id={logId}
         aria-live="polite"
         aria-label="Conversation"
-        className="mb-3 flex min-h-[8rem] flex-col gap-2"
+        className="flex-1 space-y-3 overflow-y-auto"
       >
-        {messages.length === 0 && (
-          <li className="text-sm text-slate-500">
-            Ask me anything about the venue — I reply in your language.
+        {!hasMessages && (
+          <li className="flex h-full flex-col items-center justify-center px-6 text-center">
+            <span aria-hidden="true" className="text-3xl">
+              ⚽
+            </span>
+            <p className="mt-3 font-medium text-ink-900">How can I help on matchday?</p>
+            <p className="mt-1 max-w-xs text-sm text-slate-600">
+              Gates and queues, restrooms, food, first aid, exits, transport or a
+              step-free route — in your language.
+            </p>
           </li>
         )}
+
         {messages.map((message) => (
           <li
             key={message.id}
             className={
-              message.role === 'user'
-                ? 'self-end rounded-lg bg-pitch-700 px-3 py-2 text-sm text-white'
-                : 'self-start rounded-lg bg-slate-100 px-3 py-2 text-sm text-ink-900'
+              message.role === 'user' ? 'flex justify-end' : 'flex justify-start'
             }
           >
-            {message.text}
-            {message.source === 'fallback' && message.role === 'assistant' && (
-              <span className="mt-1 block text-xs text-slate-500">
-                Answered from stadium data (offline).
-              </span>
-            )}
+            <div
+              className={
+                message.role === 'user'
+                  ? 'max-w-[85%] rounded-2xl rounded-br-md bg-pitch-700 px-3.5 py-2.5 text-sm text-white'
+                  : 'max-w-[85%] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-sm text-ink-900'
+              }
+            >
+              {message.text}
+              {message.source === 'fallback' && message.role === 'assistant' && (
+                <span className="mt-1.5 flex items-center gap-1 text-xs text-slate-600">
+                  <span aria-hidden="true">📶</span>
+                  Answered from stadium data (offline).
+                </span>
+              )}
+            </div>
           </li>
         ))}
+
         {isLoading && (
-          <li className="self-start text-sm text-slate-500" aria-hidden="true">
-            Thinking…
+          <li className="flex justify-start" aria-hidden="true">
+            <div className="rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
+              Thinking…
+            </div>
           </li>
         )}
       </ul>
 
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {SUGGESTIONS.map((suggestion) => (
           <button
             key={suggestion}
             type="button"
             onClick={() => void send(suggestion)}
             disabled={isLoading}
-            className="rounded-full border border-slate-300 px-3 py-1 text-xs text-ink-700 hover:bg-pitch-50 disabled:opacity-50"
+            className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-ink-700 transition-colors hover:bg-pitch-50 disabled:opacity-50"
           >
             {suggestion}
           </button>
@@ -180,7 +220,7 @@ export function ConciergeChat({
           event.preventDefault();
           void send(input);
         }}
-        className="flex gap-2"
+        className="mt-3 flex gap-2"
       >
         <label htmlFor="concierge-input" className="sr-only">
           Your question
@@ -192,12 +232,12 @@ export function ConciergeChat({
           onChange={(event) => setInput(event.target.value)}
           placeholder="Ask about gates, food, transport…"
           autoComplete="off"
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
         />
         <button
           type="submit"
           disabled={isLoading || input.trim().length === 0}
-          className="rounded-lg bg-pitch-700 px-4 py-2 text-sm font-semibold text-white hover:bg-pitch-600 disabled:opacity-50"
+          className="rounded-xl bg-pitch-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-pitch-600 disabled:opacity-50"
         >
           Send
         </button>

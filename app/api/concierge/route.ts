@@ -73,6 +73,9 @@ function systemInstruction(language: string): string {
     'You are PitchPilot, a concise, friendly stadium concierge for the FIFA World Cup 2026.',
     `Write your reply entirely in the language identified by the BCP-47 code "${language}".`,
     'Never mention, echo or prefix that code — reply with the answer text only.',
+    // The reply is rendered as plain text in a chat bubble, so markdown would
+    // show up as literal asterisks. Models vary on this, hence the explicit ban.
+    'Write plain prose. Never use markdown, asterisks, bullets or headings.',
     'Answer only from the STADIUM FACTS and RESOLVED ANSWER provided.',
     'RESOLVED ANSWER comes from the stadium routing engine and is authoritative: keep its',
     'gates, distances, routes and times exactly as given, and never contradict it or claim',

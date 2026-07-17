@@ -77,6 +77,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 const BRIEFING_SYSTEM = [
   'You are the operations control assistant for a FIFA World Cup 2026 stadium.',
   'Write a briefing for venue staff: 3-4 short bullet points, action-first, no fluff.',
+  // Rendered verbatim in the console, so markdown would show as literal
+  // asterisks. Match the deterministic fallback's "• " bullets exactly.
+  'Start every line with "• " and use no markdown, asterisks or headings.',
   'Use only the FACTS provided. Prioritise the most congested gate and evacuation readiness.',
 ].join(' ');
 

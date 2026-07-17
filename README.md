@@ -2,7 +2,7 @@
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-152%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/engine%20coverage-99%25-brightgreen)
 ![PWA](https://img.shields.io/badge/PWA-installable%20%C2%B7%20works%20offline-5a0fc8)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -48,6 +48,13 @@ The AI layer (Google **Gemini**) powers two features:
    never invents gates or facilities.
 2. **Operations briefing** (`/api/briefing`) — Gemini turns computed recommendations into
    a crisp, prioritised shift briefing for staff.
+
+Both go through one wrapper (`lib/gemini.ts`) that tries a **chain of models**, best
+quality first, and falls through on quota, timeout or error. That is not only redundancy:
+Gemini's free tier counts quota _per project per model_, so a second model is a second
+allowance. Thinking is disabled — these calls only rephrase facts the engine has already
+resolved, and reasoning turned a ~2s call into 8–18s, past the budget a serverless
+function has to answer in.
 
 **Key design principle — separation of maths from language.** All numeric logic lives in a
 pure, deterministic engine (`lib/`) that is 99% unit-tested and runs in the browser. The AI
@@ -112,7 +119,7 @@ lib/                  Pure, deterministic, fully-tested engines
   gemini.ts           Server-only Gemini wrapper with timeout + fallback
   schema.ts           Zod schemas for every API boundary
   ratelimit.ts        Sliding-window limiter
-__tests__/            152 tests across engines, schemas, components & routes
+__tests__/            162 tests across engines, schemas, components & routes
 ```
 
 ---
@@ -138,7 +145,7 @@ __tests__/            152 tests across engines, schemas, components & routes
 
 ## 🧪 Testing
 
-152 tests (Vitest), **99% statement / 100% function coverage** of the engine layer,
+162 tests (Vitest), **99% statement / 100% function coverage** of the engine layer,
 including edge cases, accessibility routing, schema validation, rate-limiting and API
 routes with the AI layer mocked.
 

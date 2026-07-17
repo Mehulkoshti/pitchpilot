@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { EDGES, GATES, NODES, VENUES, findGate, findNode } from '@/lib/stadium-data';
+import { evacuationLoad } from '@/lib/crowd';
+import {
+  DEFAULT_OCCUPANCY,
+  EDGES,
+  EGRESS_TARGET_MINUTES,
+  EXIT_COUNT,
+  EXIT_WIDTH_M,
+  EXIT_THROUGHPUT_PER_MIN,
+  GATES,
+  NODES,
+  RATE_OF_PASSAGE_STEPPED,
+  VENUES,
+  findGate,
+  findNode,
+} from '@/lib/stadium-data';
 import type { Venue } from '@/lib/stadium-data';
 
 describe('stadium data integrity', () => {
@@ -51,6 +65,39 @@ describe('stadium data integrity', () => {
 
   it('keeps gate open lanes within max lanes', () => {
     for (const gate of GATES) expect(gate.openLanes).toBeLessThanOrEqual(gate.maxLanes);
+  });
+});
+
+describe('emergency egress model', () => {
+  it('derives per-exit throughput from the Green Guide rate of passage', () => {
+    expect(EXIT_THROUGHPUT_PER_MIN).toBe(RATE_OF_PASSAGE_STEPPED * EXIT_WIDTH_M);
+  });
+
+  it('clears the seeded occupancy inside the Green Guide 8-minute limit', () => {
+    const { clearanceMinutes } = evacuationLoad(
+      DEFAULT_OCCUPANCY,
+      EXIT_COUNT,
+      EXIT_THROUGHPUT_PER_MIN
+    );
+    expect(clearanceMinutes).toBeLessThanOrEqual(EGRESS_TARGET_MINUTES);
+  });
+
+  it('provides enough aggregate egress width to be physically plausible', () => {
+    // 61,000 fans in 8 minutes needs ~7,625 people/min of flow; at 66 per metre
+    // per minute that is ~115 m of exit width. Anything far below this is a
+    // model that cannot hold, however tidy its arithmetic.
+    const requiredFlowPerMin = DEFAULT_OCCUPANCY / EGRESS_TARGET_MINUTES;
+    const requiredWidthM = requiredFlowPerMin / RATE_OF_PASSAGE_STEPPED;
+    expect(EXIT_COUNT * EXIT_WIDTH_M).toBeGreaterThanOrEqual(requiredWidthM);
+  });
+
+  it('goes over target when exits are lost, rather than silently passing', () => {
+    const { clearanceMinutes } = evacuationLoad(
+      DEFAULT_OCCUPANCY,
+      Math.floor(EXIT_COUNT / 2),
+      EXIT_THROUGHPUT_PER_MIN
+    );
+    expect(clearanceMinutes).toBeGreaterThan(EGRESS_TARGET_MINUTES);
   });
 });
 

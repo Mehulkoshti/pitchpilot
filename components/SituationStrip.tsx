@@ -1,6 +1,10 @@
 import { evacuationLoad } from '@/lib/crowd';
 import type { GateStatus } from '@/lib/crowd';
-import { EXIT_COUNT, EXIT_THROUGHPUT_PER_MIN } from '@/lib/stadium-data';
+import {
+  EGRESS_TARGET_MINUTES,
+  EXIT_COUNT,
+  EXIT_THROUGHPUT_PER_MIN,
+} from '@/lib/stadium-data';
 
 /** Bands that mean a human should be looking at the gate. */
 const NEEDS_ATTENTION: ReadonlySet<GateStatus['level']> = new Set(['high', 'critical']);
@@ -36,6 +40,7 @@ export function SituationStrip({
     EXIT_THROUGHPUT_PER_MIN
   );
 
+  const withinTarget = clearanceMinutes <= EGRESS_TARGET_MINUTES;
   const isCalm = needAttention.length === 0;
 
   return (
@@ -72,6 +77,15 @@ export function SituationStrip({
         <Metric
           label={`Evacuation · ${EXIT_COUNT} exits`}
           value={Number.isFinite(clearanceMinutes) ? `~${clearanceMinutes} min` : '—'}
+          // A clearance figure means nothing without the limit it is judged
+          // against. The Green Guide's 8 minutes is what makes this a signal
+          // rather than a number.
+          detail={
+            withinTarget
+              ? `Within the ${EGRESS_TARGET_MINUTES} min target`
+              : `Over the ${EGRESS_TARGET_MINUTES} min target`
+          }
+          tone={withinTarget ? 'normal' : 'alert'}
         />
       </dl>
     </section>
@@ -82,21 +96,26 @@ export function SituationStrip({
 function Metric({
   label,
   value,
+  detail,
   tone = 'normal',
 }: {
   label: string;
   value: string;
+  detail?: string;
   tone?: 'normal' | 'alert';
 }): React.JSX.Element {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-pitch-100">{label}</dt>
-      <dd
-        className={`mt-1 text-2xl font-bold tracking-tight ${
-          tone === 'alert' ? 'text-flood-400' : 'text-white'
-        }`}
-      >
-        {value}
+      <dd>
+        <span
+          className={`mt-1 block text-2xl font-bold tracking-tight ${
+            tone === 'alert' ? 'text-flood-400' : 'text-white'
+          }`}
+        >
+          {value}
+        </span>
+        {detail && <span className="mt-0.5 block text-xs text-pitch-100">{detail}</span>}
       </dd>
     </div>
   );

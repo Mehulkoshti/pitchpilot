@@ -13,7 +13,13 @@ import type { LaneRecommendation } from '@/lib/crowd';
 import { generateText, isAiConfigured } from '@/lib/gemini';
 import { aiRateLimiter, clientKey } from '@/lib/ratelimit';
 import { briefingRequestSchema } from '@/lib/schema';
-import { EXIT_COUNT, EXIT_THROUGHPUT_PER_MIN, GATES, findGate } from '@/lib/stadium-data';
+import {
+  EGRESS_TARGET_MINUTES,
+  EXIT_COUNT,
+  EXIT_THROUGHPUT_PER_MIN,
+  GATES,
+  findGate,
+} from '@/lib/stadium-data';
 
 export const runtime = 'nodejs';
 
@@ -81,10 +87,14 @@ function buildPrompt(
   clearanceMinutes: number
 ): string {
   const recs = recommendations.map((rec) => `- ${rec.label}: ${rec.reason}`).join('\n');
+  const verdict =
+    clearanceMinutes <= EGRESS_TARGET_MINUTES ? 'within target' : 'OVER TARGET';
   return [
     `FACTS:\n${facts}`,
     `LANE RECOMMENDATIONS:\n${recs || '- none'}`,
-    `EVACUATION CLEARANCE: ~${clearanceMinutes} min`,
+    // The model cannot judge a clearance figure without the standard it is
+    // measured against, so state both rather than the bare number.
+    `EVACUATION CLEARANCE: ~${clearanceMinutes} min across ${EXIT_COUNT} exits — ${verdict} (Green Guide limit ${EGRESS_TARGET_MINUTES} min)`,
   ].join('\n\n');
 }
 
@@ -107,8 +117,12 @@ function deterministicBriefing(
 ): string {
   const lines = recommendations.map((rec) => `• ${rec.label}: ${rec.reason}`);
   if (lines.length === 0) lines.push('• All gates flowing within target wait times.');
+  const verdict =
+    clearanceMinutes <= EGRESS_TARGET_MINUTES
+      ? `within the ${EGRESS_TARGET_MINUTES} min target`
+      : `OVER the ${EGRESS_TARGET_MINUTES} min target — escalate`;
   lines.push(
-    `• Evacuation clearance estimate: ~${clearanceMinutes} min across ${EXIT_COUNT} exits.`
+    `• Evacuation clearance: ~${clearanceMinutes} min across ${EXIT_COUNT} exits (${verdict}).`
   );
   return lines.join('\n');
 }

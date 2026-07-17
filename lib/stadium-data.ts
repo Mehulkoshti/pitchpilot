@@ -225,14 +225,41 @@ export const DEFAULT_GATE_READINGS: readonly GateReading[] = [
 /**
  * Emergency-egress model for the flagship venue.
  *
- * Shared rather than owned by the briefing route: the operations dashboard
- * shows evacuation readiness continuously, and the two must not be able to
- * quote different numbers for the same venue.
+ * Built on the Guide to Safety at Sports Grounds (the "Green Guide"), the
+ * standard reference for spectator safety, rather than on invented figures:
+ *
+ *  - 8 minutes is the maximum emergency egress time.
+ *  - Maximum rate of passage is 66 persons per metre of width per minute on a
+ *    stepped surface, 82 on a level one.
+ *
+ * These live here, not in the briefing route, because the operations dashboard
+ * shows evacuation readiness continuously — the console and the AI briefing must
+ * not be able to quote different numbers for the same venue.
+ *
+ * @see https://sgsa.org.uk/physical-factors/circulation/egress/
  */
-export const EXIT_COUNT = 8;
 
-/** Sustained fans-per-minute each emergency exit can clear. */
-export const EXIT_THROUGHPUT_PER_MIN = 90;
+/** Green Guide maximum emergency egress time, in minutes. */
+export const EGRESS_TARGET_MINUTES = 8;
+
+/** Green Guide maximum rate of passage on a stepped surface (persons/metre/minute). */
+export const RATE_OF_PASSAGE_STEPPED = 66;
+
+/** Clear width of a single egress portal, in metres. */
+export const EXIT_WIDTH_M = 3;
+
+/**
+ * Emergency exits serving the bowl.
+ *
+ * A bowl of this size needs roughly 115 metres of aggregate egress width to
+ * clear inside the 8-minute limit; 40 three-metre portals provide it. The
+ * previous value of 8 was not a real venue's egress — it implied nearly 85
+ * minutes to clear, an order of magnitude outside the standard.
+ */
+export const EXIT_COUNT = 40;
+
+/** Fans per minute one exit clears: rate of passage × its clear width. */
+export const EXIT_THROUGHPUT_PER_MIN = RATE_OF_PASSAGE_STEPPED * EXIT_WIDTH_M;
 
 /** Representative in-bowl occupancy used to seed the ops demo. */
 export const DEFAULT_OCCUPANCY = 61_000;

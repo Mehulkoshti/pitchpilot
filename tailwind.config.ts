@@ -32,13 +32,24 @@ const config: Config = {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
       },
       keyframes: {
-        'fade-up': {
-          '0%': { opacity: '0', transform: 'translateY(8px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+        // Transform-only, deliberately. Animating opacity from 0 leaves text
+        // below its contrast ratio for the length of the animation, which an
+        // accessibility audit sampling mid-flight reports as a real violation.
+        // The motion reads the same and the text is legible from frame one.
+        rise: {
+          '0%': { transform: 'translateY(10px)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        // Purely decorative floodlight breathing, applied only to aria-hidden
+        // glows — never to anything carrying text.
+        floodlight: {
+          '0%, 100%': { opacity: '0.45', transform: 'scale(1)' },
+          '50%': { opacity: '0.7', transform: 'scale(1.06)' },
         },
       },
       animation: {
-        'fade-up': 'fade-up 0.4s ease-out both',
+        rise: 'rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
+        floodlight: 'floodlight 9s ease-in-out infinite',
       },
     },
   },

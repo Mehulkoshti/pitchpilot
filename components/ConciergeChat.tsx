@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { answerQuery } from '@/lib/concierge';
 import { LANGUAGES } from '@/lib/i18n';
 import { DEFAULT_GATE_READINGS } from '@/lib/stadium-data';
@@ -58,6 +58,15 @@ export function ConciergeChat({
   const [isLoading, setLoading] = useState(false);
   const nextId = useRef(0);
   const logId = useId();
+  const logRef = useRef<HTMLUListElement>(null);
+
+  // Keep the newest turn in view: pin the log to the bottom whenever a message
+  // is added or the "Thinking…" indicator appears, so the conversation doesn't
+  // scroll off the bottom of the fixed-height panel.
+  useEffect(() => {
+    const log = logRef.current;
+    if (log) log.scrollTop = log.scrollHeight;
+  }, [messages, isLoading]);
 
   async function send(text: string): Promise<void> {
     const trimmed = text.trim();
@@ -154,6 +163,7 @@ export function ConciergeChat({
       {/* The conversation grows to fill the panel so the card never collapses
           into dead space before the first question is asked. */}
       <ul
+        ref={logRef}
         id={logId}
         aria-live="polite"
         aria-label="Conversation"

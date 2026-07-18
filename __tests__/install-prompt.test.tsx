@@ -1,7 +1,19 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { InstallPrompt } from '@/components/InstallPrompt';
+
+/** A synthetic beforeinstallprompt with a spyable prompt(). */
+function installEvent(): Event & { prompt: ReturnType<typeof vi.fn> } {
+  return Object.assign(new Event('beforeinstallprompt'), {
+    prompt: vi.fn(async () => undefined),
+    userChoice: Promise.resolve({ outcome: 'accepted' as const }),
+  });
+}
+
+beforeEach(() => {
+  localStorage.clear();
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -9,34 +21,42 @@ afterEach(() => {
 });
 
 describe('InstallPrompt', () => {
-  it('always explains the install benefits', () => {
+  it('renders nothing until the browser offers an install', () => {
+    const { container } = render(<InstallPrompt />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('slides in with an Install button once the prompt fires', async () => {
     render(<InstallPrompt />);
+    window.dispatchEvent(installEvent());
+    expect(await screen.findByRole('button', { name: /^install$/i })).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /take pitchpilot with you/i })
+      screen.getByRole('complementary', { name: /install pitchpilot/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/works offline/i)).toBeInTheDocument();
-    expect(screen.getByText(/opens instantly/i)).toBeInTheDocument();
-    expect(screen.getByText(/no app store/i)).toBeInTheDocument();
   });
 
-  it('falls back to a browser-menu hint when no install prompt is available', () => {
+  it('fires the native prompt when Install is clicked', async () => {
     render(<InstallPrompt />);
-    expect(screen.getByText(/install from your browser menu/i)).toBeInTheDocument();
+    const event = installEvent();
+    window.dispatchEvent(event);
+    await userEvent.click(await screen.findByRole('button', { name: /^install$/i }));
+    await waitFor(() => expect(event.prompt).toHaveBeenCalledOnce());
   });
 
-  it('shows an Install button and fires the native prompt when offered', async () => {
-    const promptFn = vi.fn(async () => undefined);
-    const evt = Object.assign(new Event('beforeinstallprompt'), {
-      prompt: promptFn,
-      userChoice: Promise.resolve({ outcome: 'accepted' as const }),
-    });
+  it('dismissing hides it and remembers the choice', async () => {
+    const { unmount } = render(<InstallPrompt />);
+    window.dispatchEvent(installEvent());
+    await screen.findByRole('button', { name: /^install$/i });
 
+    await userEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    expect(localStorage.getItem('pitchpilot:install-dismissed')).toBe('1');
+
+    // A fresh mount must not resurface it, even if the browser offers again.
+    unmount();
     render(<InstallPrompt />);
-    // The browser fires the event after load; dispatch it.
-    window.dispatchEvent(evt);
-
-    const button = await screen.findByRole('button', { name: /install app/i });
-    await userEvent.click(button);
-    await waitFor(() => expect(promptFn).toHaveBeenCalledOnce());
+    window.dispatchEvent(installEvent());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
+import { InstallPrompt } from '@/components/InstallPrompt';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 
@@ -73,6 +74,7 @@ export default function RootLayout({
           {children}
         </main>
         <SiteFooter />
+        <InstallPrompt />
       </body>
     </html>
   );

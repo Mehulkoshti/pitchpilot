@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * The `beforeinstallprompt` event, which the standard TS lib does not type.
@@ -14,161 +15,153 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 /**
- * How the app can be installed on this device.
+ * Which affordance the toast is showing.
  *
- * - `installable`: Chromium handed us a prompt — one tap installs it.
- * - `ios`: Safari never fires the prompt; installation is manual via Share.
- * - `installed`: already running as an installed app, so nothing to offer.
- * - `unknown`: no signal yet — fall back to the browser-menu hint.
+ * - `hidden`: nothing to offer (installed, dismissed, or no signal yet).
+ * - `chrome`: Chromium handed us a prompt — one tap installs it.
+ * - `ios`: Safari never fires the prompt, so we show the manual Share steps.
  */
-type InstallState = 'unknown' | 'installable' | 'ios' | 'installed';
+type Mode = 'hidden' | 'chrome' | 'ios';
 
-/** What installing gives the fan — the "features" of the PWA. */
-const BENEFITS: ReadonlyArray<{ icon: string; label: string }> = [
-  { icon: '📶', label: 'Works offline — routes and answers with no signal' },
-  { icon: '⚡', label: 'Opens instantly from your home screen' },
-  { icon: '🚫', label: 'No app store, no download — it is just the web' },
-];
+/** Persist a dismissal so the nudge does not return on every visit. */
+const DISMISS_KEY = 'pitchpilot:install-dismissed';
+
+/** Delay before offering the iOS hint, so it doesn't jump in on first paint. */
+const IOS_HINT_DELAY_MS = 2000;
 
 /**
- * A small install affordance for the landing page.
+ * A small, dismissible "install app" toast that slides up from the bottom-left.
  *
- * The heading and benefits always render (they describe the app); only the
- * action adapts to the device, so there is no layout shift and no hydration
- * mismatch — the button state is filled in after mount.
+ * It appears only when the app is genuinely installable — on Chromium once the
+ * browser offers a prompt, on iOS as a manual hint — and never after it has been
+ * installed or dismissed. Rendered once at the app root, so it is available on
+ * every page. The slide-in is a Tailwind animation, so `prefers-reduced-motion`
+ * neutralises it via the global reduced-motion rule.
  */
-export function InstallPrompt(): React.JSX.Element {
-  const [state, setState] = useState<InstallState>('unknown');
+export function InstallPrompt(): React.JSX.Element | null {
+  const [mode, setMode] = useState<Mode>('hidden');
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  // Once dismissed, ignore a later beforeinstallprompt without re-reading storage.
+  const dismissedRef = useRef(false);
 
   useEffect(() => {
-    // Detect the device's install path once on mount. Wrapped in a function
-    // (rather than a bare setState in the effect body) to keep the state update
-    // out of the synchronous render path — the same pattern as OfflineIndicator.
-    const detect = (): void => {
-      const standalone =
-        (typeof window.matchMedia === 'function' &&
-          window.matchMedia('(display-mode: standalone)').matches) ||
-        // iOS Safari exposes its own standalone flag off navigator.
-        (navigator as unknown as { standalone?: boolean }).standalone === true;
-      if (standalone) setState('installed');
-      else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) setState('ios');
-    };
-    detect();
+    const standalone =
+      (typeof window.matchMedia === 'function' &&
+        window.matchMedia('(display-mode: standalone)').matches) ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true;
+    if (standalone) return;
+
+    try {
+      dismissedRef.current = localStorage.getItem(DISMISS_KEY) === '1';
+    } catch {
+      dismissedRef.current = false;
+    }
+    if (dismissedRef.current) return;
 
     const onPrompt = (event: Event): void => {
-      // Stop the browser's own mini-infobar; we present our own button instead.
+      if (dismissedRef.current) return;
+      // Stop the browser's own mini-infobar; we present our own toast instead.
       event.preventDefault();
       setDeferred(event as BeforeInstallPromptEvent);
-      setState('installable');
+      setMode('chrome');
     };
     const onInstalled = (): void => {
-      setState('installed');
-      setDeferred(null);
+      dismissedRef.current = true;
+      setMode('hidden');
     };
-
-    // An installed app never fires beforeinstallprompt, so registering
-    // unconditionally is harmless and keeps the effect's flow simple.
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
+
+    // Safari never fires the prompt, so surface the manual hint after a beat.
+    let iosTimer: ReturnType<typeof setTimeout> | undefined;
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+      iosTimer = setTimeout(() => {
+        if (!dismissedRef.current) setMode('ios');
+      }, IOS_HINT_DELAY_MS);
+    }
+
     return () => {
       window.removeEventListener('beforeinstallprompt', onPrompt);
       window.removeEventListener('appinstalled', onInstalled);
+      if (iosTimer) clearTimeout(iosTimer);
     };
   }, []);
+
+  function dismiss(): void {
+    dismissedRef.current = true;
+    setMode('hidden');
+    try {
+      localStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      // A private-mode storage failure just means the nudge may return later.
+    }
+  }
 
   async function install(): Promise<void> {
     if (!deferred) return;
     await deferred.prompt();
     await deferred.userChoice;
-    // The prompt can only be used once; drop it whatever the fan chose.
     setDeferred(null);
+    dismiss();
   }
 
+  if (mode === 'hidden') return null;
+
   return (
-    <section
-      aria-labelledby="install-heading"
-      className="border-y border-slate-200 bg-white"
+    <aside
+      aria-label="Install PitchPilot"
+      className="animate-toast-in fixed bottom-4 left-4 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl"
     >
-      <div className="container-page grid items-center gap-8 py-12 lg:grid-cols-[1.1fr_0.9fr]">
-        <div>
-          <h2
-            id="install-heading"
-            className="text-2xl font-bold tracking-tight text-ink-900"
-          >
-            Take PitchPilot with you
-          </h2>
-          <p className="mt-2 max-w-xl text-ink-700">
-            Install it as an app on your phone — the same fast, offline-ready companion,
-            one tap from your home screen on matchday.
+      <div className="flex items-start gap-3">
+        <Image
+          src="/icon-192.png"
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 shrink-0 rounded-xl"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-ink-900">Install PitchPilot</p>
+          <p className="mt-0.5 text-sm text-ink-700">
+            Add it to your home screen — fast, and it works offline on matchday.
           </p>
 
-          <ul className="mt-5 grid gap-2 sm:grid-cols-3">
-            {BENEFITS.map((benefit) => (
-              <li
-                key={benefit.label}
-                className="flex items-start gap-2 text-sm text-ink-700"
+          {mode === 'chrome' ? (
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void install()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-pitch-700 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-pitch-600"
               >
-                <span aria-hidden="true" className="text-base leading-6">
-                  {benefit.icon}
-                </span>
-                {benefit.label}
-              </li>
-            ))}
-          </ul>
+                <span aria-hidden="true">📲</span>
+                Install
+              </button>
+              <button
+                type="button"
+                onClick={dismiss}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-ink-700 transition-colors hover:bg-slate-100"
+              >
+                Not now
+              </button>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-ink-700">
+              Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
+            </p>
+          )}
         </div>
 
-        <div className="lg:justify-self-end">
-          <InstallAction state={state} onInstall={() => void install()} />
-        </div>
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Dismiss install prompt"
+          className="-mr-1 -mt-1 shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-ink-900"
+        >
+          <span aria-hidden="true" className="block text-lg leading-none">
+            ×
+          </span>
+        </button>
       </div>
-    </section>
-  );
-}
-
-/** The device-specific call to action. */
-function InstallAction({
-  state,
-  onInstall,
-}: {
-  state: InstallState;
-  onInstall: () => void;
-}): React.JSX.Element {
-  if (state === 'installed') {
-    return (
-      <p className="rounded-xl bg-pitch-50 px-5 py-4 text-sm font-medium text-pitch-700">
-        <span aria-hidden="true">✓ </span>
-        Installed — open PitchPilot from your home screen.
-      </p>
-    );
-  }
-
-  if (state === 'installable') {
-    return (
-      <button
-        type="button"
-        onClick={onInstall}
-        className="inline-flex items-center gap-2 rounded-xl bg-pitch-700 px-6 py-3 font-semibold text-white transition-colors hover:bg-pitch-600"
-      >
-        <span aria-hidden="true">📲</span>
-        Install app
-      </button>
-    );
-  }
-
-  if (state === 'ios') {
-    return (
-      <p className="rounded-xl border border-slate-200 px-5 py-4 text-sm text-ink-700">
-        On iPhone or iPad, tap <strong>Share</strong> then{' '}
-        <strong>Add to Home Screen</strong>.
-      </p>
-    );
-  }
-
-  return (
-    <p className="rounded-xl border border-slate-200 px-5 py-4 text-sm text-ink-700">
-      Install from your browser menu — look for <strong>Install</strong> or{' '}
-      <strong>Add to Home Screen</strong>.
-    </p>
+    </aside>
   );
 }

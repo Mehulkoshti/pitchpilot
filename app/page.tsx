@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { FeatureCard } from '@/components/FeatureCard';
 import type { Feature } from '@/components/FeatureCard';
 import { GateBoard } from '@/components/GateBoard';
-import { InstallPrompt } from '@/components/InstallPrompt';
 import { PitchMarkings } from '@/components/PitchMarkings';
 import { gateStatus, recommendGate } from '@/lib/crowd';
 import {
@@ -304,9 +303,6 @@ export default function HomePage(): React.JSX.Element {
           </ul>
         </div>
       </section>
-
-      {/* -------------------------------------------------------------- install */}
-      <InstallPrompt />
 
       {/* ----------------------------------------------------------- final cta */}
       <section className="relative isolate overflow-hidden bg-pitch-900 py-20 text-white">

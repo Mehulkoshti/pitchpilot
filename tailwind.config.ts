@@ -46,10 +46,16 @@ const config: Config = {
           '0%, 100%': { opacity: '0.45', transform: 'scale(1)' },
           '50%': { opacity: '0.7', transform: 'scale(1.06)' },
         },
+        // The install toast sliding up from the corner.
+        'toast-in': {
+          '0%': { opacity: '0', transform: 'translateY(1rem) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
       },
       animation: {
         rise: 'rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
         floodlight: 'floodlight 9s ease-in-out infinite',
+        'toast-in': 'toast-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },

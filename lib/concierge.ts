@@ -137,6 +137,7 @@ const INTENT_POI: Partial<Record<Intent, PoiType>> = {
   food: 'food',
   medical: 'medical',
   exit: 'exit',
+  transport: 'transport',
 };
 
 /** Escape a keyword so it is matched literally inside a regular expression. */
@@ -174,6 +175,24 @@ export function classifyIntent(query: string): Intent {
 }
 
 /**
+ * The facility a query names, ignoring accessibility keywords, or `null`.
+ *
+ * "Accessibility" is a modifier — *how* to travel — not a destination, so a
+ * step-free query still needs to know *where* the fan wants to go. This lets the
+ * accessibility branch honour "step-free route to the food court" instead of
+ * always answering about a restroom.
+ */
+function facilityPoi(query: string): PoiType | null {
+  const normalized = query.toLowerCase();
+  for (const { intent, patterns } of INTENT_MATCHERS) {
+    if (intent === 'accessibility') continue;
+    const poi = INTENT_POI[intent];
+    if (poi && patterns.some((pattern) => pattern.test(normalized))) return poi;
+  }
+  return null;
+}
+
+/**
  * Produce a grounded answer to a fan question.
  *
  * @param query the fan's free-text question.
@@ -206,9 +225,12 @@ export function answerQuery(
       return { intent, text };
     }
     case 'accessibility': {
-      const route = findNearest(fromNodeId, 'restroom', { accessibleOnly: true });
+      // Route to the facility the fan actually named, step-free; a bare
+      // "wheelchair route?" with no destination defaults to the nearest restroom.
+      const poi = facilityPoi(query) ?? 'restroom';
+      const route = findNearest(fromNodeId, poi, { accessibleOnly: true });
       const text = route
-        ? `Step-free routing is available. The nearest accessible restroom is ${route.distanceM} m away via ${route.steps.join(' → ')}.`
+        ? `Step-free routing is available. The nearest ${poi} is ${route.distanceM} m away via ${route.steps.join(' → ')}.`
         : 'Step-free lifts serve every level; ask any steward for accessible routing assistance.';
       return { intent, text };
     }

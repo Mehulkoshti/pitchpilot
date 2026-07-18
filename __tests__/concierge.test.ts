@@ -94,6 +94,19 @@ describe('answerQuery', () => {
     expect(answer.intent).toBe('accessibility');
   });
 
+  it('routes a step-free query to the facility it actually names', () => {
+    const answer = answerQuery('step-free route to the food court?', context);
+    expect(answer.intent).toBe('accessibility');
+    expect(answer.text).toContain('food');
+    expect(answer.text).not.toContain('restroom');
+  });
+
+  it('defaults a bare accessibility query to the nearest restroom', () => {
+    const answer = answerQuery('is there a wheelchair accessible route?', context);
+    expect(answer.intent).toBe('accessibility');
+    expect(answer.text).toContain('restroom');
+  });
+
   it('routes a fan to their seat block with a grounded distance', () => {
     const answer = answerQuery('where is my seat?', { readings, fromNodeId: 'gate-a' });
     expect(answer.intent).toBe('seat');

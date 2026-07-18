@@ -12,13 +12,20 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swa
 /**
  * The origin canonical URLs and social previews are resolved against.
  *
- * Read from the environment rather than hard-coded: Netlify injects `URL` for
- * the deployed site automatically, and `NEXT_PUBLIC_SITE_URL` overrides it for
- * a custom domain. A hard-coded host silently points every canonical tag and
- * OG image at whatever happens to own that name.
+ * Read from the environment rather than hard-coded so it is correct on whatever
+ * host serves it: `NEXT_PUBLIC_SITE_URL` wins (set it for a custom domain),
+ * then the platform's own signal — Railway's `RAILWAY_PUBLIC_DOMAIN` or
+ * Netlify's `URL` — then localhost for development. A hard-coded host silently
+ * points every canonical tag and OG image at whatever owns that name.
  */
+const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : undefined;
 const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? process.env.URL ?? 'http://localhost:3000';
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  railwayUrl ??
+  process.env.URL ??
+  'http://localhost:3000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

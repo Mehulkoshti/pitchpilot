@@ -2,7 +2,7 @@
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-178%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/engine%20coverage-99%25-brightgreen)
 ![PWA](https://img.shields.io/badge/PWA-installable%20%C2%B7%20works%20offline-5a0fc8)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -160,7 +160,7 @@ lib/                  Pure, deterministic, fully-tested engines
   gemini.ts           Server-only Gemini wrapper with timeout + fallback
   schema.ts           Zod schemas for every API boundary
   ratelimit.ts        Sliding-window limiter
-__tests__/            162 tests across engines, schemas, components & routes
+__tests__/            178 tests across engines, schemas, components & routes
 ```
 
 ---
@@ -186,7 +186,7 @@ __tests__/            162 tests across engines, schemas, components & routes
 
 ## 🧪 Testing
 
-162 tests (Vitest), **99% statement / 100% function coverage** of the engine layer,
+178 tests (Vitest), **99% statement / 100% function coverage** of the engine layer,
 including edge cases, accessibility routing, schema validation, rate-limiting and API
 routes with the AI layer mocked.
 
@@ -211,13 +211,20 @@ to enable AI concierge replies and briefings.
 
 ### Deploying
 
-The app is a standard Next.js build; `netlify.toml` wires up
-`@netlify/plugin-nextjs`. One environment variable matters:
+A standard Next.js server build — `npm run build` then `npm start` (it honours
+the `PORT` the platform provides). It runs anywhere that runs Node 20.9+:
 
-| Variable               | Needed?  | Effect                                                                                                                         |
-| ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `GEMINI_API_KEY`       | Optional | Enables the AI layer. Without it the deterministic engine answers everything — the app still works, but nothing is AI-phrased. |
-| `NEXT_PUBLIC_SITE_URL` | Optional | Canonical origin for SEO/social tags. Netlify's own `URL` is used automatically; set this only for a custom domain.            |
+- **Railway / Render / Fly / a VPS** — a persistent Node server, which suits this
+  app well: the in-memory rate limiter and warm process behave as intended, with
+  no serverless cold starts or function timeouts.
+- **Netlify / Vercel** — also fine; `netlify.toml` wires up `@netlify/plugin-nextjs`.
+
+Environment variables:
+
+| Variable               | Needed?  | Effect                                                                                                                                                 |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GEMINI_API_KEY`       | Optional | Enables the AI layer. Without it the deterministic engine answers everything — the app still works, but nothing is AI-phrased.                         |
+| `NEXT_PUBLIC_SITE_URL` | Optional | Canonical origin for SEO/social tags. Railway's `RAILWAY_PUBLIC_DOMAIN` and Netlify's `URL` are used automatically; set this only for a custom domain. |
 
 ### Scripts
 

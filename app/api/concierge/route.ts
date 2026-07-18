@@ -11,6 +11,7 @@ import { answerQuery, buildGroundingContext } from '@/lib/concierge';
 import { generateText, isAiConfigured } from '@/lib/gemini';
 import { aiRateLimiter, clientKey } from '@/lib/ratelimit';
 import { conciergeRequestSchema } from '@/lib/schema';
+import { readJsonBody } from '@/lib/request';
 import { DEFAULT_GATE_READINGS } from '@/lib/stadium-data';
 
 /** Ensure this route runs on the Node.js runtime (uses `server-only` client). */
@@ -34,7 +35,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const parsed = conciergeRequestSchema.safeParse(await readJson(request));
+  const parsed = conciergeRequestSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Invalid request', issues: parsed.error.flatten() },
@@ -110,13 +111,4 @@ function buildPrompt(
     `RESOLVED ANSWER: ${resolvedAnswer}`,
     `FAN QUESTION: ${message}`,
   ].join('\n\n');
-}
-
-/** Parse a request body as JSON, returning `null` on malformed input. */
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
 }

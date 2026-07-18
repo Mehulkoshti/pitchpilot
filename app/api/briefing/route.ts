@@ -13,6 +13,7 @@ import type { LaneRecommendation } from '@/lib/crowd';
 import { generateText, isAiConfigured } from '@/lib/gemini';
 import { aiRateLimiter, clientKey } from '@/lib/ratelimit';
 import { briefingRequestSchema } from '@/lib/schema';
+import { readJsonBody } from '@/lib/request';
 import {
   EGRESS_TARGET_MINUTES,
   EXIT_COUNT,
@@ -40,7 +41,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const parsed = briefingRequestSchema.safeParse(await readJson(request));
+  const parsed = briefingRequestSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Invalid request', issues: parsed.error.flatten() },
@@ -136,13 +137,4 @@ function deterministicBriefing(
     `• Evacuation clearance: ~${clearanceMinutes} min across ${EXIT_COUNT} exits (${verdict}).`
   );
   return lines.join('\n');
-}
-
-/** Parse a request body as JSON, returning `null` on malformed input. */
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
 }

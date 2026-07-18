@@ -101,15 +101,23 @@ function buildPrompt(
   ].join('\n\n');
 }
 
-/** One line per gate summarising its live status for the prompt/fallback. */
+/**
+ * One line per gate summarising its live status for the prompt/fallback.
+ *
+ * Readings for unknown gate ids are dropped rather than echoed: the raw
+ * client-supplied `gateId` would otherwise be interpolated into the AI prompt
+ * (an injection surface), and an unrecognised gate carries no useful telemetry
+ * anyway. Only trusted gate labels from {@link findGate} reach the model.
+ */
 function summariseReadings(readings: Parameters<typeof recommendLaneChanges>[0]): string {
   return readings
     .map((reading) => {
       const gate = findGate(reading.gateId);
-      if (!gate) return `${reading.gateId}: unknown gate`;
+      if (!gate) return null;
       const status = gateStatus(reading, gate);
       return `${status.label}: ${status.queue} queued, ~${status.waitMinutes} min (${status.level})`;
     })
+    .filter((line): line is string => line !== null)
     .join('\n');
 }
 

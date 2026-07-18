@@ -15,7 +15,7 @@
  * Bump VERSION to invalidate every cache on the next deploy.
  */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL_CACHE = `pitchpilot-shell-${VERSION}`;
 const RUNTIME_CACHE = `pitchpilot-runtime-${VERSION}`;
 const OFFLINE_URL = '/offline';
@@ -27,7 +27,8 @@ const SHELL_ASSETS = [
   '/ops',
   OFFLINE_URL,
   '/manifest.webmanifest',
-  '/icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {

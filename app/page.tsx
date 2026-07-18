@@ -4,8 +4,13 @@ import type { Feature } from '@/components/FeatureCard';
 import { GateBoard } from '@/components/GateBoard';
 import { PitchMarkings } from '@/components/PitchMarkings';
 import { gateStatus, recommendGate } from '@/lib/crowd';
-import { DEFAULT_GATE_READINGS, GATES, VENUES } from '@/lib/stadium-data';
-import { rankTransport } from '@/lib/sustainability';
+import {
+  DEFAULT_GATE_READINGS,
+  DEFAULT_OCCUPANCY,
+  GATES,
+  VENUES,
+} from '@/lib/stadium-data';
+import { crowdFootprintTonnes, rankTransport } from '@/lib/sustainability';
 import { findNearest } from '@/lib/wayfinding';
 
 /** The six capabilities, each mapped to a challenge focus area. */
@@ -52,6 +57,19 @@ const FEATURES: readonly Feature[] = [
 const REFERENCE_TRIP_KM = 8;
 
 /**
+ * A representative post-match modal split for a well-served urban venue —
+ * most fans on rail, a minority still driving. Fractions sum to 1. Illustrative,
+ * used only for the crowd-scale CO₂e figure.
+ */
+const MODAL_SPLIT: Readonly<Record<string, number>> = {
+  rail: 0.45,
+  carpool: 0.15,
+  bus: 0.15,
+  walk: 0.05,
+  car: 0.2,
+};
+
+/**
  * Public landing page.
  *
  * Every number on this page is computed here by the real engines rather than
@@ -76,6 +94,16 @@ export default function HomePage(): React.JSX.Element {
   const transport = rankTransport(REFERENCE_TRIP_KM);
   const rail = transport.find((option) => option.optionId === 'rail');
   const car = transport.find((option) => option.optionId === 'car');
+
+  // Venue-scale footprint: a full house travelling the representative mix versus
+  // everyone driving alone. Rounded to tonnes for a headline figure.
+  const mixedTonnes = Math.round(
+    crowdFootprintTonnes(DEFAULT_OCCUPANCY, MODAL_SPLIT, REFERENCE_TRIP_KM)
+  );
+  const allCarTonnes = Math.round(
+    crowdFootprintTonnes(DEFAULT_OCCUPANCY, { car: 1 }, REFERENCE_TRIP_KM)
+  );
+  const tonnesSaved = allCarTonnes - mixedTonnes;
 
   const totalSeats = VENUES.reduce((sum, venue) => sum + venue.capacity, 0);
   const hostCountries = [...new Set(VENUES.map((venue) => venue.country))];
@@ -201,6 +229,37 @@ export default function HomePage(): React.JSX.Element {
           {FEATURES.map((feature) => (
             <FeatureCard key={feature.title} feature={feature} />
           ))}
+        </div>
+      </section>
+
+      {/* ------------------------------------------------- sustainability scale */}
+      <section
+        aria-labelledby="footprint-heading"
+        className="border-y border-pitch-100 bg-pitch-50"
+      >
+        <div className="container-page py-12 text-center">
+          <h2
+            id="footprint-heading"
+            className="text-sm font-semibold uppercase tracking-wider text-pitch-700"
+          >
+            Sustainability at venue scale
+          </h2>
+          {/* Connectives are string expressions, not JSX text: prettier/JSX
+              whitespace around inline <strong> is unreliable and dropped the
+              space after some numbers. */}
+          <p className="mx-auto mt-3 max-w-2xl text-lg text-ink-900">
+            {'A full house of '}
+            <strong>{DEFAULT_OCCUPANCY.toLocaleString('en-US')}</strong>
+            {' travelling home by the greener mix emits about '}
+            <strong className="text-pitch-700">{mixedTonnes} tonnes</strong>
+            {' of CO₂e — versus '}
+            <strong>{allCarTonnes} tonnes</strong>
+            {
+              ' if everyone drove alone. PitchPilot’s nudges toward rail and carpooling target that '
+            }
+            <strong className="text-pitch-700">{tonnesSaved}-tonne</strong>
+            {' gap.'}
+          </p>
         </div>
       </section>
 

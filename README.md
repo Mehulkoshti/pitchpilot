@@ -116,6 +116,10 @@ Made explicit so the model and the demo are read in the right light:
   tournament-configuration numbers (sources vary); distances and per-gate
   throughputs are illustrative. Nothing safety-critical is derived from a
   capacity — it is display-only.
+- **The crowd-footprint figure uses a representative modal split.** The
+  venue-scale CO₂e comparison assumes a plausible post-match travel mix (most
+  fans on rail, a minority driving); it illustrates the size of the prize, not a
+  measured split.
 - **The evacuation model follows the Green Guide.** Clearance uses the Guide to
   Safety at Sports Grounds — an 8-minute target and 66 persons/metre/minute — over
   40 three-metre exits. Real venues publish their own egress plans; this is a

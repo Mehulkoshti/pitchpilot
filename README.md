@@ -11,7 +11,9 @@
 intelligence, accessible wayfinding, a multilingual AI concierge and real-time
 operational decision support, all in one fast, installable, accessible web app.**
 
-> Built for **PromptWars Challenge 4 — Smart Stadiums & Tournament Operations.**
+> **Chosen vertical:** Challenge 4 — Smart Stadiums & Tournament Operations.
+> **Personas served:** the fan (navigation, accessibility, transport, multilingual
+> help) and venue operations staff (crowd management, real-time decision support).
 
 ---
 
@@ -94,6 +96,41 @@ cached, because a stale queue length is worse than no queue length.
 | Operational intelligence   | Real-time ops dashboard + AI briefing                    |
 | Real-time decision support | Lane/evacuation advice operators can apply in one click  |
 | Resilience                 | Full offline operation via service worker + local engine |
+
+---
+
+## 📌 Assumptions
+
+Made explicit so the model and the demo are read in the right light:
+
+- **Telemetry is a seeded snapshot, not a live feed.** The gate queues, arrival
+  rates and occupancy ship as a representative matchday sample. The system is
+  wired for live data — the ops dashboard recomputes from any readings, and the
+  API accepts telemetry per request — but no real stadium feed is connected, so
+  a fixed snapshot stands in.
+- **One venue is modelled in full detail.** All sixteen host venues are seeded
+  (names, cities, capacities), but the navigation graph and gate model represent
+  a single representative bowl. The engine is venue-agnostic; porting it to
+  another stadium is a data change, not a code change.
+- **Published figures are approximate.** Venue capacities are rounded
+  tournament-configuration numbers (sources vary); distances and per-gate
+  throughputs are illustrative. Nothing safety-critical is derived from a
+  capacity — it is display-only.
+- **The evacuation model follows the Green Guide.** Clearance uses the Guide to
+  Safety at Sports Grounds — an 8-minute target and 66 persons/metre/minute — over
+  40 three-metre exits. Real venues publish their own egress plans; this is a
+  defensible stand-in, not a specific stadium's certified figure.
+- **AI is a language layer, never a decision-maker.** Every number and route is
+  computed by the deterministic engine; the model only phrases it. So a missing
+  key, drained quota or timeout degrades to the same correct answer, just
+  unphrased — the app is always usable.
+- **Free-tier Gemini quota.** The default model chain assumes the free tier
+  (~20 requests/day _per model_, so the chain gives roughly 80/day). Under heavy
+  judging load the app falls back to the deterministic engine rather than
+  failing. A billed key removes the cap.
+- **Single-instance rate limiting.** The in-memory limiter assumes one instance;
+  on horizontally-scaled serverless it is best-effort and would use a shared
+  store (Redis) in production.
 
 ---
 

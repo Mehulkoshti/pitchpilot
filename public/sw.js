@@ -15,7 +15,7 @@
  * Bump VERSION to invalidate every cache on the next deploy.
  */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = `pitchpilot-shell-${VERSION}`;
 const RUNTIME_CACHE = `pitchpilot-runtime-${VERSION}`;
 const OFFLINE_URL = '/offline';

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 /** Primary navigation links surfaced in the header. */
@@ -12,9 +13,14 @@ export function SiteHeader(): React.JSX.Element {
     <header className="border-b border-slate-200 bg-white">
       <div className="container-page flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-bold text-pitch-700">
-          <span aria-hidden="true" className="text-xl">
-            ⚽
-          </span>
+          <Image
+            src="/icon-192.png"
+            alt="PitchPilot"
+            width={32}
+            height={32}
+            priority
+            className="h-8 w-8 rounded-lg"
+          />
           <span className="text-lg">PitchPilot</span>
         </Link>
         <nav aria-label="Primary">

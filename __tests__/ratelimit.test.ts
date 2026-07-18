@@ -66,4 +66,22 @@ describe('clientKey', () => {
   it('falls back to anonymous when no IP is present', () => {
     expect(clientKey(new Headers())).toBe('anonymous');
   });
+
+  it('prefers a platform-trusted header over spoofable X-Forwarded-For', () => {
+    // X-Forwarded-For is client-set and spoofable; the platform header wins so
+    // an attacker rotating XFF cannot escape their rate-limit bucket.
+    const headers = new Headers({
+      'x-forwarded-for': '9.9.9.9',
+      'x-nf-client-connection-ip': '203.0.113.7',
+    });
+    expect(clientKey(headers)).toBe('203.0.113.7');
+  });
+
+  it('uses x-real-ip when no Netlify header is present', () => {
+    const headers = new Headers({
+      'x-real-ip': '203.0.113.9',
+      'x-forwarded-for': '9.9.9.9',
+    });
+    expect(clientKey(headers)).toBe('203.0.113.9');
+  });
 });

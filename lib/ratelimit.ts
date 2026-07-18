@@ -85,11 +85,25 @@ export class RateLimiter {
 export const aiRateLimiter = new RateLimiter();
 
 /**
- * Best-effort client key from a request's forwarded headers. Falls back to a
- * constant bucket so the limiter still applies when no IP is available.
+ * Client key for rate limiting, from the most trustworthy IP header available.
+ *
+ * Preference order matters for abuse resistance. `X-Forwarded-For` is set by
+ * the *client* and freely spoofable — rotating it lands an attacker in a fresh
+ * bucket on every request, defeating the limiter — so it is the last resort.
+ * Platform-injected headers (Netlify's `x-nf-client-connection-ip`, and the
+ * standard `x-real-ip` many proxies set) reflect the actual peer and cannot be
+ * forged by the client, so they come first.
+ *
+ * Falls back to a single shared bucket when no IP is available, so the limit
+ * still applies rather than failing open.
  */
+const TRUSTED_IP_HEADERS = ['x-nf-client-connection-ip', 'x-real-ip'] as const;
+
 export function clientKey(headers: Headers): string {
-  const forwarded = headers.get('x-forwarded-for');
-  const ip = forwarded?.split(',')[0]?.trim();
-  return ip && ip.length > 0 ? ip : 'anonymous';
+  for (const header of TRUSTED_IP_HEADERS) {
+    const value = headers.get(header)?.trim();
+    if (value) return value;
+  }
+  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return forwarded && forwarded.length > 0 ? forwarded : 'anonymous';
 }

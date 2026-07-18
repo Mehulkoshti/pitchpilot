@@ -12,7 +12,7 @@ import type { Gate, GateReading } from './stadium-data';
 export type CongestionLevel = 'low' | 'moderate' | 'high' | 'critical';
 
 /** Wait-time thresholds (minutes) that separate the congestion bands. */
-const WAIT_THRESHOLDS_MIN = { moderate: 5, high: 12, critical: 20 } as const;
+export const WAIT_THRESHOLDS_MIN = { moderate: 5, high: 12, critical: 20 } as const;
 
 /** A fully derived, display-ready status for one gate. */
 export interface GateStatus {

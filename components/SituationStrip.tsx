@@ -1,4 +1,4 @@
-import { evacuationLoad } from '@/lib/crowd';
+import { WAIT_THRESHOLDS_MIN, evacuationLoad } from '@/lib/crowd';
 import type { GateStatus } from '@/lib/crowd';
 import {
   EGRESS_TARGET_MINUTES,
@@ -71,7 +71,11 @@ export function SituationStrip({
         <Metric
           label="Longest wait"
           value={longestWait === null ? '—' : `${longestWait} min`}
-          tone={longestWait !== null && longestWait >= 12 ? 'alert' : 'normal'}
+          tone={
+            longestWait !== null && longestWait >= WAIT_THRESHOLDS_MIN.high
+              ? 'alert'
+              : 'normal'
+          }
         />
         <Metric label="In the bowl" value={occupancy.toLocaleString('en-US')} />
         <Metric

@@ -1,9 +1,6 @@
 /**
- * Zod schemas for every API boundary.
- *
- * All untrusted input is parsed through these schemas before it reaches any
- * engine, which bounds string lengths and array sizes to prevent abuse and
- * gives the client precise, structured validation errors.
+ * Zod schemas for every API boundary. All untrusted input is parsed here first,
+ * with bounded string lengths and array sizes.
  */
 
 import { z } from 'zod';
@@ -19,15 +16,8 @@ export const gateReadingSchema = z.object({
 export const conciergeRequestSchema = z.object({
   /** The fan's free-text question. */
   message: z.string().trim().min(1, 'Message is required').max(500),
-  /**
-   * BCP-47 language code the fan wants a reply in.
-   *
-   * Constrained to the shape of a real language tag (`en`, `pt-BR`, `zh-Hant`)
-   * rather than any short string: this value is interpolated into the model's
-   * system instruction, so restricting it to letters, digits and a single
-   * hyphen keeps free-form text out of the prompt. Any real language stays
-   * expressible — the concierge is not limited to the codes the UI lists.
-   */
+  // Constrained to a BCP-47 shape, not any short string: it is interpolated
+  // into the model's system instruction, so free-form text must not reach it.
   language: z
     .string()
     .regex(/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i, 'Must be a BCP-47 language code')

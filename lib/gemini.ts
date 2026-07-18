@@ -1,31 +1,16 @@
 /**
- * Google Gemini client wrapper (server-only).
- *
- * Centralises all Generative-AI calls. The API key is read from the server
- * environment and never shipped to the browser. Every call is wrapped so a
- * missing key, exhausted quota, network error or model timeout resolves to
- * `null`, letting the caller fall back to the deterministic engine — the app is
- * always usable.
- *
- * This module is excluded from unit-test coverage because it is a thin network
- * boundary; its behaviour is exercised through the route tests with the client
- * mocked.
+ * Server-only Google Gemini wrapper. The API key never reaches the browser, and
+ * any failure resolves to `null` so callers fall back to the deterministic
+ * engine.
  */
 
 import 'server-only';
 import { GoogleGenAI } from '@google/genai';
 
 /**
- * Models tried in order, best quality first.
- *
- * A chain rather than a single model, for two reasons. The free tier counts its
- * quota *per project per model* — 20 requests a day each, as the 429 itself
- * reports — so a second model is not merely a backup, it is a second allowance.
- * And an exhausted model fails in milliseconds, which makes falling through the
- * chain nearly free.
- *
- * Only models with real free-tier availability are listed: the 2.0 family and
- * 2.5-pro report a limit of 0/day and would waste a link.
+ * Models tried in order, best quality first. Free-tier quota is counted per
+ * project per model, so a second model is also a second daily allowance; an
+ * exhausted model fails in milliseconds, making fall-through cheap.
  */
 const DEFAULT_MODELS = [
   'gemini-2.5-flash',
@@ -44,13 +29,7 @@ const MODELS: readonly string[] = (
   .map((model) => model.trim())
   .filter((model) => model.length > 0);
 
-/**
- * Budget for the whole chain.
- *
- * A serverless host kills the function long before a fan gives up — Netlify's
- * default is 10s — so every attempt together must finish inside that, or the
- * route returns a 502 instead of a graceful fallback.
- */
+/** Budget for the whole chain, kept under a serverless function's ~10s limit. */
 const TOTAL_BUDGET_MS = 9_000;
 
 /** Cap on a single attempt, so one slow model cannot eat the whole budget. */
@@ -108,12 +87,8 @@ async function attempt(
       contents: prompt,
       config: {
         systemInstruction,
-        // Thinking off, deliberately. These calls only rephrase facts the
-        // engine has already resolved, so reasoning buys nothing — yet it cost
-        // 8-18s on 2.5-flash against a 9s budget. Capping output is not the fix
-        // either: thinking tokens are billed against maxOutputTokens, so a cap
-        // truncates the *answer* while the reasoning runs on. Off, the same
-        // call returns in about two seconds.
+        // Off: these calls only rephrase already-resolved facts, and thinking
+        // pushed 2.5-flash to 8-18s (its tokens also count against any output cap).
         thinkingConfig: { thinkingBudget: 0 },
         abortSignal: AbortSignal.timeout(timeoutMs),
       },

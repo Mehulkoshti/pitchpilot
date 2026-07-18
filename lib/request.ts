@@ -1,23 +1,7 @@
-/**
- * Bounded, crash-safe JSON body reading for the API routes.
- */
-
-/**
- * Largest request body accepted, in bytes.
- *
- * A valid request is a few kilobytes at most (a 500-char message plus up to 20
- * bounded gate readings), so 16 KB is generous. The cap is a cheap denial-of-
- * service guard on top of the platform's own request limit: an oversized body
- * is rejected before it is parsed into memory.
- */
+/** Largest request body accepted (a valid one is a few KB); a cheap DoS guard. */
 const DEFAULT_MAX_BYTES = 16_384;
 
-/**
- * Read a request body as JSON, or `null` when it is malformed or too large.
- *
- * The caller turns `null` into a 400, so an oversized or invalid body fails
- * cleanly rather than being materialised or crashing the handler.
- */
+/** Read a request body as JSON, or `null` when it is malformed or too large. */
 export async function readJsonBody(
   request: Request,
   maxBytes: number = DEFAULT_MAX_BYTES

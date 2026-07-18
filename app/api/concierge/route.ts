@@ -13,6 +13,7 @@ import { aiRateLimiter, clientKey } from '@/lib/ratelimit';
 import { conciergeRequestSchema } from '@/lib/schema';
 import { readJsonBody } from '@/lib/request';
 import { DEFAULT_GATE_READINGS } from '@/lib/stadium-data';
+import type { GateReading } from '@/lib/stadium-data';
 
 /** Ensure this route runs on the Node.js runtime (uses `server-only` client). */
 export const runtime = 'nodejs';
@@ -93,17 +94,12 @@ function systemInstruction(language: string): string {
 }
 
 /**
- * Compose the user prompt from the grounding facts and the engine's own answer.
- *
- * The deterministic engine has already resolved the question against the live
- * graph, so handing the model that answer — not just raw venue facts — keeps the
- * AI a *language* layer over correct maths. Without it the model has no route or
- * seat data to work from and will answer less accurately than the fallback it is
- * replacing.
+ * Compose the user prompt from the grounding facts and the engine's resolved
+ * answer, so the model phrases correct maths rather than inventing it.
  */
 function buildPrompt(
   message: string,
-  readings: Parameters<typeof buildGroundingContext>[0],
+  readings: readonly GateReading[],
   resolvedAnswer: string
 ): string {
   return [

@@ -6,6 +6,7 @@
  * emission intensities in {@link TransportOption}.
  */
 
+import { clamp, round } from './math';
 import { TRANSPORT_OPTIONS } from './stadium-data';
 import type { TransportOption } from './stadium-data';
 
@@ -31,7 +32,7 @@ const GRAMS_PER_KG = 1000;
 export function estimateTrip(option: TransportOption, distanceKm: number): number {
   const safeDistance = Math.max(0, distanceKm);
   const grams = option.co2PerKm * safeDistance * 2;
-  return round2(grams / GRAMS_PER_KG);
+  return round(grams / GRAMS_PER_KG, 2);
 }
 
 /**
@@ -76,18 +77,8 @@ export function crowdFootprintTonnes(
   let totalKg = 0;
   for (const option of options) {
     const share = modalSplit[option.id] ?? 0;
-    const fans = Math.max(0, attendees) * clampFraction(share);
+    const fans = Math.max(0, attendees) * clamp(share, 0, 1);
     totalKg += fans * estimateTrip(option, distanceKm);
   }
-  return round2(totalKg / GRAMS_PER_KG);
-}
-
-/** Clamp a fraction into the inclusive `[0, 1]` range. */
-function clampFraction(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
-/** Round to two decimal places. */
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
+  return round(totalKg / GRAMS_PER_KG, 2);
 }

@@ -6,6 +6,7 @@
  * inputs — no I/O, no clock — so behaviour is fully reproducible and testable.
  */
 
+import { clamp, round } from './math';
 import type { Gate, GateReading } from './stadium-data';
 
 /** Ordered congestion bands from calmest to most severe. */
@@ -37,26 +38,19 @@ export interface GateStatus {
 export function effectiveThroughput(gate: Gate): number {
   if (gate.maxLanes <= 0) return 0;
   const openRatio = clamp(gate.openLanes / gate.maxLanes, 0, 1);
-  return round1(gate.throughputPerMin * openRatio);
+  return round(gate.throughputPerMin * openRatio);
 }
 
 /**
- * Estimated wait in minutes for a fan joining the queue now.
- *
- * Under FIFO service the fan waits only for the `queue` fans already ahead of
- * them, cleared at the gate's effective throughput — so the estimate is
- * `queue / throughput`. Arrival rate is deliberately excluded: fans arriving
- * after this one join *behind* them and cannot delay them. Arrivals do govern
- * whether the queue as a whole is growing, which {@link GateStatus.isBacklogGrowing}
- * reports separately.
- *
- * @returns minutes, or `Infinity` when no lane is open to serve the queue.
+ * Estimated wait for a fan joining now: `queue / throughput` under FIFO.
+ * Arrivals are excluded (they queue behind this fan) — they only drive
+ * {@link GateStatus.isBacklogGrowing}. Returns `Infinity` when no lane is open.
  */
 export function estimateWaitMinutes(reading: GateReading, gate: Gate): number {
   const throughput = effectiveThroughput(gate);
   if (throughput <= 0) return Infinity;
   if (reading.queue <= 0) return 0;
-  return round1(reading.queue / throughput);
+  return round(reading.queue / throughput);
 }
 
 /** Map a wait time in minutes to a congestion band. */
@@ -155,15 +149,5 @@ export function evacuationLoad(
     return { perExit: 0, clearanceMinutes: Infinity };
   }
   const perExit = Math.ceil(Math.max(0, totalOccupancy) / exitCount);
-  return { perExit, clearanceMinutes: round1(perExit / exitThroughputPerMin) };
-}
-
-/** Clamp `value` into the inclusive `[min, max]` range. */
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-/** Round to one decimal place. */
-function round1(value: number): number {
-  return Math.round(value * 10) / 10;
+  return { perExit, clearanceMinutes: round(perExit / exitThroughputPerMin) };
 }

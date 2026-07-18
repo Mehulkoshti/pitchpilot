@@ -121,9 +121,8 @@ export function ConciergeChat({
   const hasMessages = messages.length > 0;
 
   return (
-    // A fixed panel height rather than stretching to the column: matching the
-    // taller right-hand column pushed the input below the fold and left a void
-    // above it. 32rem keeps the whole conversation and the input on screen.
+    // Fixed height so the input stays on screen rather than stretching to the
+    // taller column beside it.
     <section className="card flex h-[32rem] flex-col" aria-labelledby="concierge-heading">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div className="flex items-center gap-2.5">

@@ -9,7 +9,7 @@
 
 import { recommendGate } from './crowd';
 import type { GateReading } from './stadium-data';
-import { GATES } from './stadium-data';
+import { GATES, REFERENCE_TRIP_KM } from './stadium-data';
 import { rankTransport } from './sustainability';
 import { findNearest } from './wayfinding';
 import type { PoiType } from './stadium-data';
@@ -218,7 +218,7 @@ export function answerQuery(
       return { intent, text };
     }
     case 'transport': {
-      const [greenest] = rankTransport(8);
+      const [greenest] = rankTransport(REFERENCE_TRIP_KM);
       const text = greenest
         ? `The greenest way back is ${greenest.label} (~${greenest.kgCo2e} kg CO₂e, ${greenest.typicalMinutes} min). The rail link is signposted from the South concourse.`
         : 'Rail, shuttle bus and carpool options depart from the South concourse.';

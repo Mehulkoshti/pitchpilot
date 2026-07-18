@@ -1,10 +1,6 @@
 /**
- * In-memory sliding-window rate limiter.
- *
- * Protects the AI endpoints from abuse without an external dependency. Suitable
- * for a single-instance deployment; a distributed deployment would swap the
- * store for Redis behind the same interface. Pure logic aside from reading the
- * caller-supplied timestamp, which keeps it deterministic under test.
+ * In-memory sliding-window rate limiter for the AI routes. Single-instance; a
+ * distributed deployment would swap the store for Redis behind this interface.
  */
 
 /** The outcome of a rate-limit check. */
@@ -63,14 +59,7 @@ export class RateLimiter {
     return this.hits.size;
   }
 
-  /**
-   * Drop keys whose hits have all aged out of the window.
-   *
-   * Without this the map grows by one entry per distinct client IP and never
-   * shrinks — a slow leak that a long-running matchday instance would feel.
-   * The scan is O(tracked keys) but amortised to once per window, so the
-   * per-request cost stays negligible.
-   */
+  /** Drop keys whose hits have all aged out, so the map can't grow unbounded. */
   private sweep(now: number): void {
     if (now - this.lastSweep < this.windowMs) return;
     this.lastSweep = now;
@@ -85,17 +74,9 @@ export class RateLimiter {
 export const aiRateLimiter = new RateLimiter();
 
 /**
- * Client key for rate limiting, from the most trustworthy IP header available.
- *
- * Preference order matters for abuse resistance. `X-Forwarded-For` is set by
- * the *client* and freely spoofable — rotating it lands an attacker in a fresh
- * bucket on every request, defeating the limiter — so it is the last resort.
- * Platform-injected headers (Netlify's `x-nf-client-connection-ip`, and the
- * standard `x-real-ip` many proxies set) reflect the actual peer and cannot be
- * forged by the client, so they come first.
- *
- * Falls back to a single shared bucket when no IP is available, so the limit
- * still applies rather than failing open.
+ * Client key from the most trustworthy IP header. Platform-injected headers come
+ * first because `X-Forwarded-For` is client-set and spoofable; a shared
+ * `anonymous` bucket is the fail-closed fallback.
  */
 const TRUSTED_IP_HEADERS = ['x-nf-client-connection-ip', 'x-real-ip'] as const;
 

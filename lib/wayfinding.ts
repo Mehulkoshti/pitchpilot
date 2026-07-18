@@ -7,6 +7,7 @@
  * guaranteed step-free path. Pure and deterministic.
  */
 
+import { round } from './math';
 import { EDGES, NODES, findNode } from './stadium-data';
 import type { PoiType, StadiumEdge, StadiumNode } from './stadium-data';
 
@@ -67,11 +68,7 @@ function buildGraph(
   return graph;
 }
 
-/**
- * The graph depends only on the module-constant nodes/edges and the single
- * `accessibleOnly` boolean, so there are exactly two of them ever. Build each
- * once, lazily, rather than reconstructing it on every route query.
- */
+/** Only two graphs are possible (accessible or not), so build each once. */
 const GRAPH_CACHE = new Map<boolean, Map<string, Neighbour[]>>();
 
 function graphFor(accessibleOnly: boolean): Map<string, Neighbour[]> {
@@ -90,11 +87,9 @@ interface Sweep {
 }
 
 /**
- * Dijkstra from a single source to *every* reachable node in one pass.
- *
- * A fixed-source sweep already yields the distance to every node, so both
- * {@link findRoute} (one target) and {@link findNearest} (nearest of many) are
- * built on this single sweep rather than re-running the search per target.
+ * Dijkstra from one source to every reachable node in a single pass, so both
+ * {@link findRoute} and {@link findNearest} reuse one sweep. O(V²) selection is
+ * fine for a graph this small.
  */
 function sweepFrom(fromId: string, accessibleOnly: boolean): Sweep {
   const graph = graphFor(accessibleOnly);
@@ -102,8 +97,6 @@ function sweepFrom(fromId: string, accessibleOnly: boolean): Sweep {
   const previous = new Map<string, Step>();
   const visited = new Set<string>();
 
-  // Simple O(V^2) selection is ideal here: the venue graph is small and this
-  // keeps the implementation dependency-free and easy to verify.
   while (visited.size < NODES.length) {
     const current = closestUnvisited(distance, visited);
     if (current === null) break;
@@ -127,7 +120,7 @@ function routeTo(sweep: Sweep, fromId: string, toId: string): Route | null {
   return {
     path,
     steps: path.map(labelOf),
-    distanceM: round1(sweep.distance.get(toId) ?? 0),
+    distanceM: round(sweep.distance.get(toId) ?? 0),
     accessible: isStepFree(path, edges),
   };
 }
@@ -158,12 +151,8 @@ export function findRoute(
 }
 
 /**
- * Whether a computed route is genuinely step-free: every edge walked must avoid
- * stairs and every node passed through must itself be accessible.
- *
- * This is derived from the route, not from the caller's request flag — a route
- * found without {@link RouteOptions.accessibleOnly} may still be step-free, and
- * reporting that truthfully is what lets the UI label it correctly.
+ * Whether a route is genuinely step-free — no stairs, every node accessible —
+ * derived from the route itself, not the caller's request flag.
  */
 function isStepFree(path: readonly string[], edges: readonly StadiumEdge[]): boolean {
   return (
@@ -185,8 +174,6 @@ export function findNearest(
 ): Route | null {
   if (!findNode(fromId)) return null;
 
-  // One sweep, then pick the nearest matching POI — rather than a fresh search
-  // per candidate.
   const sweep = sweepFrom(fromId, options.accessibleOnly ?? false);
   let bestId: string | null = null;
   let bestDist = Infinity;
@@ -241,9 +228,4 @@ function reconstructPath(
 /** Resolve a node id to its display label, falling back to the id. */
 function labelOf(id: string): string {
   return findNode(id)?.label ?? id;
-}
-
-/** Round to one decimal place. */
-function round1(value: number): number {
-  return Math.round(value * 10) / 10;
 }

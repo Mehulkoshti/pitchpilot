@@ -21,6 +21,7 @@ import {
   GATES,
   findGate,
 } from '@/lib/stadium-data';
+import type { GateReading } from '@/lib/stadium-data';
 
 export const runtime = 'nodejs';
 
@@ -103,14 +104,10 @@ function buildPrompt(
 }
 
 /**
- * One line per gate summarising its live status for the prompt/fallback.
- *
- * Readings for unknown gate ids are dropped rather than echoed: the raw
- * client-supplied `gateId` would otherwise be interpolated into the AI prompt
- * (an injection surface), and an unrecognised gate carries no useful telemetry
- * anyway. Only trusted gate labels from {@link findGate} reach the model.
+ * One line per gate for the prompt/fallback. Unknown gate ids are dropped, not
+ * echoed, so a client-supplied `gateId` can't be injected into the prompt.
  */
-function summariseReadings(readings: Parameters<typeof recommendLaneChanges>[0]): string {
+function summariseReadings(readings: readonly GateReading[]): string {
   return readings
     .map((reading) => {
       const gate = findGate(reading.gateId);

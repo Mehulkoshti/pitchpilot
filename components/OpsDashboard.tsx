@@ -31,6 +31,7 @@ export function OpsDashboard(): React.JSX.Element {
   // act on it here and watch the queue respond.
   const [gates, setGates] = useState<Gate[]>([...GATES]);
   const [briefing, setBriefing] = useState<BriefingApiResponse | null>(null);
+  const [briefingError, setBriefingError] = useState(false);
   const [isLoading, setLoading] = useState(false);
 
   const gateById = useMemo(() => new Map(gates.map((gate) => [gate.id, gate])), [gates]);
@@ -74,15 +75,19 @@ export function OpsDashboard(): React.JSX.Element {
 
   async function generateBriefing(): Promise<void> {
     setLoading(true);
+    setBriefingError(false);
     try {
       const response = await fetch('/api/briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ readings, occupancy: DEFAULT_OCCUPANCY }),
       });
-      if (response.ok) setBriefing((await response.json()) as BriefingApiResponse);
+      if (!response.ok) throw new Error(`briefing responded ${response.status}`);
+      setBriefing((await response.json()) as BriefingApiResponse);
     } catch {
-      setBriefing(null);
+      // Surface the failure rather than swallowing it — and keep any briefing
+      // already on screen, so a network blip does not wipe the operator's board.
+      setBriefingError(true);
     } finally {
       setLoading(false);
     }
@@ -198,6 +203,12 @@ export function OpsDashboard(): React.JSX.Element {
             </div>
 
             <div className="card" aria-live="polite">
+              {briefingError && (
+                <p className="mb-3 rounded-lg bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800">
+                  <span aria-hidden="true">⚠ </span>
+                  Couldn&apos;t reach the briefing service — please try again.
+                </p>
+              )}
               {briefing ? (
                 <>
                   <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink-900">
@@ -210,9 +221,11 @@ export function OpsDashboard(): React.JSX.Element {
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-slate-600">
-                  Turn the current telemetry into a prioritised, shift-ready briefing.
-                </p>
+                !briefingError && (
+                  <p className="text-sm text-slate-600">
+                    Turn the current telemetry into a prioritised, shift-ready briefing.
+                  </p>
+                )
               )}
             </div>
           </section>

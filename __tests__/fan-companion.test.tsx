@@ -103,6 +103,29 @@ describe('ConciergeChat — offline behaviour', () => {
     ).toBeInTheDocument();
   });
 
+  it('falls back to the on-device engine when the server returns an error', async () => {
+    // A 429 (rate-limited) used to strand the fan with "ask a steward" even
+    // though the pure engine in the browser could still answer.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429 })
+      )
+    );
+    const user = userEvent.setup();
+    render(<FanCompanion />);
+
+    await user.click(screen.getByRole('button', { name: /nearest restroom/i }));
+
+    await waitFor(() =>
+      expect(within(chatLog()).getByText(/Restroom \(Upper North\)/)).toBeInTheDocument()
+    );
+    expect(
+      screen.queryByText(/could not answer|ask a nearby steward/i)
+    ).not.toBeInTheDocument();
+  });
+
   it('honours step-free routing even in the offline fallback', async () => {
     vi.stubGlobal(
       'fetch',

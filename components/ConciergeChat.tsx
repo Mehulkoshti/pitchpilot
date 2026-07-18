@@ -74,17 +74,22 @@ export function ConciergeChat({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: trimmed, language, fromNodeId, accessibleOnly }),
       });
+      if (!response.ok) throw new Error(`concierge responded ${response.status}`);
       const data = (await response.json()) as ConciergeApiResponse;
-      const answer = response.ok
-        ? data.answer
-        : 'Sorry, I could not answer just now. Please ask a nearby steward.';
       setMessages((prev) => [
         ...prev,
-        { id: nextId.current++, role: 'assistant', text: answer, source: data.source },
+        {
+          id: nextId.current++,
+          role: 'assistant',
+          text: data.answer,
+          source: data.source,
+        },
       ]);
     } catch {
-      // The network is gone, but the concierge engine is pure and already in the
-      // browser — answer locally rather than stranding the fan with an error.
+      // Any failure — network gone, rate-limited, a 500 — lands here. The
+      // concierge engine is pure and already in the browser, so answer locally
+      // rather than stranding the fan with an apology when a rate-limit blip
+      // could still be answered from stadium data.
       const local = answerQuery(trimmed, {
         readings: DEFAULT_GATE_READINGS,
         fromNodeId,

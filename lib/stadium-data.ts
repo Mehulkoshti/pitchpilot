@@ -353,12 +353,25 @@ export const EDGES: readonly StadiumEdge[] = [
   { from: 'concourse-0-s', to: 'transport-rail', distanceM: 80, stairsOnly: false },
 ];
 
+/**
+ * Id indexes, built once at module load. These lookups run inside the
+ * wayfinding engine's hot paths — once per node when labelling a route, and
+ * again per node when checking accessibility — so an O(1) Map beats re-scanning
+ * the arrays each time.
+ */
+const NODE_BY_ID: ReadonlyMap<string, StadiumNode> = new Map(
+  NODES.map((node) => [node.id, node])
+);
+const GATE_BY_ID: ReadonlyMap<string, Gate> = new Map(
+  GATES.map((gate) => [gate.id, gate])
+);
+
 /** Look up a node by id, or `undefined` when the id is unknown. */
 export function findNode(id: string): StadiumNode | undefined {
-  return NODES.find((node) => node.id === id);
+  return NODE_BY_ID.get(id);
 }
 
 /** Look up a gate by id, or `undefined` when the id is unknown. */
 export function findGate(id: string): Gate | undefined {
-  return GATES.find((gate) => gate.id === id);
+  return GATE_BY_ID.get(id);
 }

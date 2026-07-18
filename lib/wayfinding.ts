@@ -68,6 +68,71 @@ function buildGraph(
 }
 
 /**
+ * The graph depends only on the module-constant nodes/edges and the single
+ * `accessibleOnly` boolean, so there are exactly two of them ever. Build each
+ * once, lazily, rather than reconstructing it on every route query.
+ */
+const GRAPH_CACHE = new Map<boolean, Map<string, Neighbour[]>>();
+
+function graphFor(accessibleOnly: boolean): Map<string, Neighbour[]> {
+  let graph = GRAPH_CACHE.get(accessibleOnly);
+  if (graph === undefined) {
+    graph = buildGraph(NODES, EDGES, accessibleOnly);
+    GRAPH_CACHE.set(accessibleOnly, graph);
+  }
+  return graph;
+}
+
+/** The result of one shortest-path sweep from a single source. */
+interface Sweep {
+  readonly distance: Map<string, number>;
+  readonly previous: Map<string, Step>;
+}
+
+/**
+ * Dijkstra from a single source to *every* reachable node in one pass.
+ *
+ * A fixed-source sweep already yields the distance to every node, so both
+ * {@link findRoute} (one target) and {@link findNearest} (nearest of many) are
+ * built on this single sweep rather than re-running the search per target.
+ */
+function sweepFrom(fromId: string, accessibleOnly: boolean): Sweep {
+  const graph = graphFor(accessibleOnly);
+  const distance = new Map<string, number>([[fromId, 0]]);
+  const previous = new Map<string, Step>();
+  const visited = new Set<string>();
+
+  // Simple O(V^2) selection is ideal here: the venue graph is small and this
+  // keeps the implementation dependency-free and easy to verify.
+  while (visited.size < NODES.length) {
+    const current = closestUnvisited(distance, visited);
+    if (current === null) break;
+    visited.add(current);
+    for (const { to, edge } of graph.get(current) ?? []) {
+      if (visited.has(to)) continue;
+      const candidate = (distance.get(current) ?? Infinity) + edge.distanceM;
+      if (candidate < (distance.get(to) ?? Infinity)) {
+        distance.set(to, candidate);
+        previous.set(to, { from: current, edge });
+      }
+    }
+  }
+  return { distance, previous };
+}
+
+/** Assemble a {@link Route} to `toId` from a completed sweep, or `null`. */
+function routeTo(sweep: Sweep, fromId: string, toId: string): Route | null {
+  if (!sweep.distance.has(toId)) return null;
+  const { path, edges } = reconstructPath(sweep.previous, fromId, toId);
+  return {
+    path,
+    steps: path.map(labelOf),
+    distanceM: round1(sweep.distance.get(toId) ?? 0),
+    accessible: isStepFree(path, edges),
+  };
+}
+
+/**
  * Find the shortest route between two node ids.
  *
  * @returns a {@link Route}, or `null` when either endpoint is unknown or no
@@ -89,37 +154,7 @@ export function findRoute(
   }
 
   const accessibleOnly = options.accessibleOnly ?? false;
-  const graph = buildGraph(NODES, EDGES, accessibleOnly);
-  const distance = new Map<string, number>();
-  const previous = new Map<string, Step>();
-  const visited = new Set<string>();
-  distance.set(fromId, 0);
-
-  // Simple O(V^2) selection is ideal here: the venue graph is small and this
-  // keeps the implementation dependency-free and easy to verify.
-  while (visited.size < NODES.length) {
-    const current = closestUnvisited(distance, visited);
-    if (current === null) break;
-    if (current === toId) break;
-    visited.add(current);
-    for (const { to, edge } of graph.get(current) ?? []) {
-      if (visited.has(to)) continue;
-      const candidate = (distance.get(current) ?? Infinity) + edge.distanceM;
-      if (candidate < (distance.get(to) ?? Infinity)) {
-        distance.set(to, candidate);
-        previous.set(to, { from: current, edge });
-      }
-    }
-  }
-
-  if (!distance.has(toId)) return null;
-  const { path, edges } = reconstructPath(previous, fromId, toId);
-  return {
-    path,
-    steps: path.map(labelOf),
-    distanceM: round1(distance.get(toId) ?? 0),
-    accessible: isStepFree(path, edges),
-  };
+  return routeTo(sweepFrom(fromId, accessibleOnly), fromId, toId);
 }
 
 /**
@@ -148,13 +183,22 @@ export function findNearest(
   type: PoiType,
   options: RouteOptions = {}
 ): Route | null {
-  let best: Route | null = null;
+  if (!findNode(fromId)) return null;
+
+  // One sweep, then pick the nearest matching POI — rather than a fresh search
+  // per candidate.
+  const sweep = sweepFrom(fromId, options.accessibleOnly ?? false);
+  let bestId: string | null = null;
+  let bestDist = Infinity;
   for (const node of NODES) {
     if (node.type !== type || node.id === fromId) continue;
-    const route = findRoute(fromId, node.id, options);
-    if (route && (best === null || route.distanceM < best.distanceM)) best = route;
+    const dist = sweep.distance.get(node.id);
+    if (dist !== undefined && dist < bestDist) {
+      bestDist = dist;
+      bestId = node.id;
+    }
   }
-  return best;
+  return bestId === null ? null : routeTo(sweep, fromId, bestId);
 }
 
 /** Return the unvisited node with the smallest tentative distance. */
